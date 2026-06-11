@@ -1,6 +1,54 @@
 # 验收清单
 
-> 每阶段完成后按顺序执行对应命令。全部通过后再更新 `STAGE_CONTROL.md` 进入下一阶段。
+> 每阶段完成后按顺序执行对应命令。MVP 收尾后请优先使用下方 **MVP 最终验收** 一节。
+
+## MVP 最终验收
+
+MVP 阶段一至十一已全部完成。推荐按以下**三段**顺序执行（`check_rag.py` 仅在停服务阶段执行一次，**不要在 uvicorn 运行后重复执行**）。
+
+### 第一段：服务停止状态下执行
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+
+python scripts/seed_knowledge.py
+python scripts/rebuild_qdrant.py --recreate
+python scripts/check_rag.py
+```
+
+### 第二段：启动单实例服务
+
+```powershell
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+### 第三段：服务运行状态下执行（另一终端）
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+
+python scripts/check_health.py
+python scripts/check_db.py
+python scripts/check_seed_data.py
+python scripts/check_graph.py
+python scripts/check_llm.py
+python scripts/check_full_flow.py
+python scripts/check_unanswered_flow.py
+python scripts/check_feedback_stats.py
+python scripts/check_langsmith.py
+python scripts/check_wecom_mock.py
+```
+
+### MVP 通过标准
+
+- [ ] 上述 11 个 `check_*.py`（含停服务阶段的 `check_rag.py`）退出码均为 0
+- [ ] `/ask-test` 命中 / 未命中 / 反馈 / 统计 / 未命中沉淀可手动验证
+- [ ] `WECOM_ENABLED=false` 时服务正常启动
+- [ ] 详见 [MVP_DELIVERY.md](MVP_DELIVERY.md)
+
+---
 
 ## 通用准备
 

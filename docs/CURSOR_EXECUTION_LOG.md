@@ -394,3 +394,36 @@ python scripts/check_graph.py
 **需要用户处理事项**
 - 完整验收前建议：停服务 → seed → rebuild_qdrant --recreate → check_rag → 重启单实例
 - 真实企业微信上线见 `docs/WECOM_INTEGRATION.md`（需公网与后台配置）
+
+---
+
+### MVP 收尾 — 文档整理 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**模式**：MVP 收尾 / 文档整理（禁止核心代码修改）
+
+**新建文档**
+- `docs/MVP_DELIVERY.md` — MVP 最终交付总览
+- `docs/DEMO_SCRIPT.md` — 领导版 / 技术版演示脚本
+- `docs/LOCAL_SETUP.md` — 本地启动一站式说明
+
+**修改文档**
+- `README.md` — MVP 已交付入口、文档索引、快速启动；历史阶段标注
+- `docs/ACCEPTANCE_CHECKLIST.md` — 新增 MVP 最终验收三段顺序
+- `docs/STAGE_CONTROL.md` — MVP 收尾模式、编码冻结
+- `docs/MASTER_PLAN.md` — MVP 交付状态与交付物索引
+- `docs/DECISIONS.md` — §18 MVP 交付边界与 Demo/Mock 声明
+- `docs/WECOM_INTEGRATION.md` — 文首链接与 MVP 边界说明
+
+**未修改**
+- 所有核心代码（`app/agent`、`app/rag`、`app/llm`、`app/wecom`、`app/observability`、`app/services` 业务实现等）
+- 所有 `scripts/check_*.py`
+- `/api/ask` 响应结构、LangGraph 拓扑、数据库表结构
+
+**未新增**
+- 业务功能、API、页面、验收脚本、阶段十二
+
+**需要用户处理事项**
+- 按 `docs/ACCEPTANCE_CHECKLIST.md` MVP 最终验收一节执行全量回归
+- 演示前阅读 `docs/DEMO_SCRIPT.md`

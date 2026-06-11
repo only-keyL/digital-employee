@@ -1,0 +1,239 @@
+# MVP 演示脚本
+
+> 面向领导汇报与技术同事讲解的演示指南。演示前请先完成 [`LOCAL_SETUP.md`](LOCAL_SETUP.md) 中的环境与数据准备。
+
+## 1. 演示前检查清单
+
+- [ ] MySQL 已启动，`.env` 中 `MYSQL_*` 正确
+- [ ] 已执行 `seed_knowledge.py` 与 `rebuild_qdrant.py --recreate`（**停 uvicorn 后**）
+- [ ] `python scripts/check_rag.py` 通过
+- [ ] **仅一个** uvicorn 实例监听 `127.0.0.1:8001`
+- [ ] 浏览器可访问 `http://127.0.0.1:8001`
+- [ ] 顶栏显示：`LLM: mock`、`Embedding: fastembed`、`LangSmith: OFF`、`WeCom: OFF`（或 WeCom Mock）
+- [ ] 可选：终端预跑 `python scripts/check_graph.py` 确认链路正常
+
+---
+
+## 2. 领导版演示路线（约 15 分钟）
+
+**目标**：讲清业务价值，证明「问答 → 沉淀 → 反馈 → 统计」闭环。
+
+### 开场（1 分钟）
+
+打开 `http://127.0.0.1:8001/`
+
+> 这是面向实施群的知识沉淀型数字员工 MVP。它能把群里反复出现的问题变成可检索的知识，并自动发现还没覆盖的问题，形成持续改进闭环。企业微信入口已预留，当前用 Web 演示。
+
+### 第一步：智能问答（4 分钟）
+
+进入 **在线测试** `/ask-test`
+
+**命中题**（输入后提交）：
+
+```text
+客户现场登录失败，提示账号无权限，应该怎么处理？
+```
+
+讲解要点：
+
+- 系统从知识库检索到相关卡片并生成回答
+- 展示 `matched=true`、`sources`、相似度
+- **价值**：减少实施群重复答疑，一线提问秒回
+
+在结果区提交 **「有用」** 反馈。
+
+> 每条提问可收集反馈，用于后续优化知识质量。
+
+### 第二步：统计看板（2 分钟）
+
+进入 **统计看板** `/statistics`
+
+讲解要点：
+
+- 命中率、未命中率、满意度
+- Top 未命中、Top 负反馈榜单
+- **价值**：管理者可见知识覆盖与质量趋势
+
+### 第三步：未命中与沉淀（4 分钟）
+
+回到 `/ask-test`，输入 **未命中题**：
+
+```text
+客户打印模板套打偏移怎么处理？
+```
+
+讲解要点：
+
+- `matched=false`，系统记录为待沉淀问题
+- **价值**：自动发现知识库盲区
+
+进入 **未命中问题** `/unanswered-questions`，打开该条 **详情**：
+
+1. 点击 **AI 生成草稿**（预览，不落库）
+2. 点击 **转为知识卡片**，生成 `draft` 状态卡片
+3. 说明：需人工审核通过后才会进入检索库
+
+> 未覆盖问题可一键转为知识草稿，审核后回流知识库，形成飞轮。
+
+### 第四步：知识卡片（2 分钟）
+
+进入 **知识卡片** `/knowledge-cards`
+
+讲解要点：
+
+- 审核、启停、版本与向量同步状态
+- **价值**：知识资产可治理、可追溯
+
+### 收尾（2 分钟）
+
+> 当前是可演示、可验收的 MVP，不是生产上线版本。企业微信已预留 Mock 接口，真实接入需公网与后台配置（见 `docs/WECOM_INTEGRATION.md`）。后续可平滑接到实施群，无需重做问答核心。
+
+---
+
+## 3. 技术版演示路线（约 25 分钟）
+
+**目标**：讲清架构分层与可验收性。
+
+### 架构总览（5 分钟）
+
+结合首页顶栏 Badge 与白板/口述：
+
+```text
+入口：/api/ask、/ask-test、POST /api/wecom/mock/callback
+编排：AskService → AskGraphRunner → LangGraph（8 节点）
+检索：Qdrant local + fastembed
+生成：MockLLM（默认）/ DeepSeek（可选）
+主库：MySQL（知识、日志、未命中、反馈）
+观测：LangSmith 可选，默认 OFF
+```
+
+强调：
+
+- LangGraph **只做编排**，节点薄封装 Service，未重写 RAG/LLM
+- Repository → Service → Router 分层
+- `app.main` 启动不强依赖 MySQL/Qdrant
+
+### Web 演示（8 分钟）
+
+按领导版路线 A 的步骤 2～5 操作一遍，技术同事关注：
+
+- `question_log_id` 落库
+- 未命中 `unanswered_question.frequency`
+- convert 后 `audit_status=draft`
+
+### 脚本验收（10 分钟）
+
+**终端 2**（服务已启动）：
+
+```powershell
+python scripts/check_graph.py
+python scripts/check_wecom_mock.py
+python scripts/check_feedback_stats.py
+```
+
+讲解要点：
+
+- 11 个 `check_*.py` 覆盖全链路，退出码 0 即回归通过
+- `check_wecom_mock` 验证企微 Mock 与 `source_type=wecom`、msg_id 去重
+- `check_langsmith` 关闭模式必过
+
+### 边界说明（2 分钟）
+
+- Qdrant **local 单实例**；勿多 uvicorn 同时访问
+- 企微 **Mock 为主**；AES 加解密未生产就绪
+- `/api/ask` 响应结构**已冻结**
+
+---
+
+## 4. 标准演示问题
+
+| 场景 | 问题文本 | 期望 |
+|------|----------|------|
+| 命中 | 客户现场登录失败，提示账号无权限，应该怎么处理？ | `matched=true`，answer 含「答案来源」或「Mock 模型回答」 |
+| 未命中 | 客户打印模板套打偏移怎么处理？ | `matched=false`，写入未命中列表 |
+| 空问题 | （留空或全空格） | `question_log_id=null`，不写库 |
+
+与验收脚本 `check_graph.py`、`check_full_flow.py` 保持一致。
+
+---
+
+## 5. 页面操作步骤（速查）
+
+| 步骤 | 路径 | 操作 |
+|------|------|------|
+| 1 | `/ask-test` | 输入命中题 → 查看结果 → 提交反馈 |
+| 2 | `/statistics` | 查看命中率、满意度、Top 榜单 |
+| 3 | `/ask-test` | 输入未命中题 |
+| 4 | `/unanswered-questions` | 进入 pending 详情 |
+| 5 | 详情页 | generate-draft → convert |
+| 6 | `/knowledge-cards` | 查看新 draft 卡片 |
+
+---
+
+## 6. 企业微信 Mock 演示步骤（技术可选，+5 分钟）
+
+**前提**：服务已启动，`WECOM_MOCK_ENABLED=true`。
+
+### 6.1 URL 验证
+
+```powershell
+curl "http://127.0.0.1:8001/api/wecom/callback?echostr=mock_echo&timestamp=1&nonce=1&msg_signature=any"
+```
+
+期望：响应 body 为 `mock_echo`。
+
+### 6.2 Mock 命中消息
+
+```powershell
+curl -X POST "http://127.0.0.1:8001/api/wecom/mock/callback" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"msg_id\":\"demo-001\",\"from_user\":\"wecom_user_demo\",\"to_user\":\"corp_agent\",\"chat_id\":\"wecom_group_demo\",\"msg_type\":\"text\",\"content\":\"客户现场登录失败，提示账号无权限，应该怎么处理？\",\"create_time\":1718000000}"
+```
+
+期望：`Content-Type` 含 `xml`，`Content` 含回答文本。
+
+讲解要点：
+
+- 与 `/api/ask` **共用** `AskService` / LangGraph
+- `question_log.source_type=wecom`
+- 相同 `msg_id` 重复 POST 不新增日志（去重）
+
+### 6.3 自动化验收
+
+```powershell
+python scripts/check_wecom_mock.py
+```
+
+---
+
+## 7. 常见问题应对
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| 8001 端口占用 | 已有 uvicorn | `netstat -ano \| findstr :8001` → 结束旧进程 |
+| `check_rag` / rebuild 失败 | uvicorn 占用 Qdrant | **先停服务** 再 rebuild |
+| 命中题变成未命中 | 未 seed 或未 rebuild | 停服务 → seed → rebuild → check_rag |
+| 页面数据库错误 | MySQL 未启动 | 启动 MySQL，检查 `.env` |
+| fastembed 首次慢 | 模型下载 | 提前联网跑一次 `check_rag.py` |
+| 反馈按钮灰色 | 无 `question_log_id` | 空问题或请求失败，换有效问题 |
+
+---
+
+## 8. 不建议现场演示的内容
+
+| 内容 | 原因 |
+|------|------|
+| 真实企业微信后台配置 | 需公网 HTTPS，非 MVP 范围 |
+| LangSmith 控制台 | 默认关闭，非必演示项 |
+| DeepSeek 真实调用 | 依赖 Key 与网络，可能产生费用 |
+| `rebuild_qdrant --recreate` | 需停服务，现场耗时长 |
+| 多开 uvicorn | Qdrant local 会锁库报错 |
+| 声称「已生产上线」 | MVP 边界，避免误导 |
+
+---
+
+## 相关文档
+
+- [MVP_DELIVERY.md](MVP_DELIVERY.md) — 交付总览与能力边界
+- [LOCAL_SETUP.md](LOCAL_SETUP.md) — 本地启动
+- [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) — 验收清单

@@ -124,6 +124,47 @@
 - **加解密**：`crypto.py` 预留；AES 未完整实现，生产前需补齐
 - **验收**：`scripts/check_wecom_mock.py`
 
+### 18. MVP 交付边界与 Demo/Mock 声明（已确定）
+
+**正式 MVP 能力**（可演示、可验收）：
+
+- 知识卡片全生命周期、Qdrant 向量检索、LangGraph 问答编排
+- 未命中沉淀闭环、反馈与统计看板
+- `/api/ask`、`/ask-test` Web 问答链路
+- 11 个 `check_*.py` 自动化验收体系
+
+**Demo 能力**（本地演示，非生产部署形态）：
+
+- Qdrant **local** 单文件存储，`./storage/qdrant`
+- fastembed 本地 Embedding（首次需下载模型）
+- 进程内企微 `msg_id` 去重（重启清空）
+- Jinja2 管理页（非前后端分离产品形态）
+
+**Mock 能力**（默认或降级路径）：
+
+- **MockLLM** 为默认 `LLM_PROVIDER=mock`
+- DeepSeek 无 Key 或失败时降级 MockLLM
+- LangSmith 默认 `LANGSMITH_TRACING=false`
+- 企业微信 **Mock JSON**（`POST /api/wecom/mock/callback`）为验收主路径
+
+**接口预留**（非生产可用）：
+
+- `GET/POST /api/wecom/callback` 真实企微回调骨架
+- `app/wecom/crypto.py` AES 加解密（**未完整实现**）
+- `WECOM_BOT_KEY` 仅文档预留主动发送，**不用于接收回调**
+
+**冻结项**：
+
+- `/api/ask` 响应结构不再变更
+- LangGraph 8 节点拓扑不再变更（MVP 范围内）
+- **无阶段十二**
+
+**生产化尚须补齐**（文档 backlog，非当前阶段）：
+
+- 企微：公网 HTTPS、Token、EncodingAESKey、完整 AES 加解密、Redis 去重
+- 部署：Qdrant 集群/托管、多实例
+- 安全：脱敏、鉴权、密钥托管
+
 ## 待后续增强决策（占位）
 
-- 企业微信生产级 AES 加解密与多实例去重方案
+- 生产化立项后的阶段划分与优先级（单独立项，非自动阶段十二）

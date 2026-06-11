@@ -1,20 +1,59 @@
 # 企业微信数字员工助手（digital-employee-assistant）
 
-面向企业微信实施群的知识沉淀型数字员工 Demo。当前仓库处于**阶段十一：企业微信接口预留**，支持 Mock JSON 回调复用 LangGraph 问答链路；`question_log.source_type=wecom` 落库（不改变 `/api/ask` 响应结构，不影响 `/ask-test`）。
+## MVP 已交付
 
-MVP 阶段一至十一已全部实现，真实企业微信上线需人工配置，详见 `docs/WECOM_INTEGRATION.md`。
+面向企业微信实施群的知识沉淀型数字员工 **Demo / MVP**。阶段一至十一已全部完成，具备可演示、可脚本验收的完整业务闭环（问答 → 沉淀 → 反馈 → 统计）。
 
-阶段二起需要本地 MySQL；`/api/health` 仍不依赖数据库。
+**定位**：可演示、可验收的 MVP，**不是**生产上线版本。无阶段十二；后续优化见交付文档中的生产化 backlog。
 
-## 技术栈（规划）
+本地默认地址：`http://127.0.0.1:8001`（`.env` 中 `APP_PORT=8001`）
 
-FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith
+## 文档索引
 
-## 环境要求
+| 文档 | 说明 |
+|------|------|
+| [docs/MVP_DELIVERY.md](docs/MVP_DELIVERY.md) | **交付总览**（能力、边界、验收、backlog） |
+| [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
+| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | **演示脚本**（领导版 15min / 技术版 25min） |
+| [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md) | **MVP 最终验收**命令与通过标准 |
+| [docs/WECOM_INTEGRATION.md](docs/WECOM_INTEGRATION.md) | 企业微信真实接入（生产向） |
+| [docs/DECISIONS.md](docs/DECISIONS.md) | 架构决策与 MVP 边界 |
+
+## 快速启动
+
+完整步骤见 [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)。摘要：
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+
+# 仅首次：Copy-Item .env.example .env（已有 .env 勿覆盖）
+
+python scripts/seed_knowledge.py
+python scripts/rebuild_qdrant.py --recreate   # 需先停 uvicorn
+python scripts/check_rag.py
+
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+```
+
+## 演示与验收
+
+- **演示**：[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+- **验收**：[docs/ACCEPTANCE_CHECKLIST.md#mvp-最终验收](docs/ACCEPTANCE_CHECKLIST.md#mvp-最终验收)
+
+---
+
+## 历史开发记录（阶段二至十一）
+
+> 以下为分阶段开发过程文档，新用户请优先阅读 [MVP_DELIVERY.md](docs/MVP_DELIVERY.md)。技术栈：FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith。
+
+### 环境要求
 
 - Python 3.10 或 3.11（推荐）
 - MySQL 8.x（阶段二起必需，需自行安装并启动）
 - Windows / macOS / Linux 均可
+
+阶段二起需要本地 MySQL；`/api/health` 仍不依赖数据库。
 
 ## 阶段二：MySQL 初始化
 

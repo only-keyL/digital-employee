@@ -87,9 +87,25 @@
 
 ## 当前进度
 
-**已完成：阶段一至阶段十一（MVP 闭环）。**
+**MVP 交付状态：已完成（阶段一至十一）。**
 
-**等待用户验收阶段十一；无后续规划阶段。**
+- 编码冻结，无阶段十二
+- 交付文档：`docs/MVP_DELIVERY.md`、`docs/DEMO_SCRIPT.md`、`docs/LOCAL_SETUP.md`
+- 后续优化：生产化 backlog（见 `MVP_DELIVERY.md` 第 13 节），非当前开发阶段
+
+## MVP 交付物索引
+
+| 交付物 | 路径 |
+|--------|------|
+| 交付总览 | `docs/MVP_DELIVERY.md` |
+| 本地启动 | `docs/LOCAL_SETUP.md` |
+| 演示脚本 | `docs/DEMO_SCRIPT.md` |
+| 验收清单 | `docs/ACCEPTANCE_CHECKLIST.md` |
+| 企微生产接入 | `docs/WECOM_INTEGRATION.md` |
+| 架构决策 | `docs/DECISIONS.md` |
+| 执行记录 | `docs/CURSOR_EXECUTION_LOG.md` |
+| 环境模板 | `.env.example` |
+| 验收脚本 | `scripts/check_*.py`（11 个） |
 
 ## 协作文件索引
 

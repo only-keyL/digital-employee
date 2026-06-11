@@ -1,33 +1,45 @@
-# 当前阶段：阶段十一已完成（等待用户验收）
+# 当前模式：MVP 收尾 / 文档整理
 
-> **重要**：本文件是 Cursor 每轮执行的「唯一阶段入口」。阶段十一编码已完成，等待用户验收确认。
+> **重要**：阶段一至十一编码已完成并冻结。当前仅允许文档整理，禁止新增业务功能与核心代码修改。
 
 ## 当前状态
 
 - 阶段一至阶段十一：**已完成**
-- 无后续规划阶段（MVP 闭环）
+- MVP 交付文档：**已整理**（见 `docs/MVP_DELIVERY.md`）
+- **不新增阶段十二**
 
-## 执行模式
+## 编码状态
 
-1. 用户验收通过后，本文件可标记为「全部阶段已完成」。
-2. **未经用户确认不得开始新的增强阶段**编码。
-3. 若需新阶段，用户应更新 `MASTER_PLAN.md` 并明确确认范围。
+| 项 | 状态 |
+|----|------|
+| 业务功能开发 | **冻结** |
+| 核心代码修改 | **禁止**（`/api/ask`、LangGraph、Qdrant、LLM、WeCom、LangSmith） |
+| 文档整理 | **允许** |
+| 生产化需求 | 进入 **backlog**，见 `MVP_DELIVERY.md` 第 13 节 |
 
-## 阶段十一交付摘要
+## 允许事项
 
-1. 企业微信回调接口预留（GET/POST `/api/wecom/callback`）
-2. Mock JSON 回调（`POST /api/wecom/mock/callback`）
-3. 复用 `AskService` / LangGraph；`source_type=wecom` 落库
-4. 进程内消息去重；`check_wecom_mock.py` 验收
+1. 更新 README、`docs/*` 交付与演示文档
+2. 优化验收清单、演示脚本说明
+3. 补充生产化 backlog 描述（文档层）
 
-## 验收命令
+## 禁止事项
 
-```powershell
-python scripts/check_wecom_mock.py
-python scripts/check_langsmith.py
-python scripts/check_feedback_stats.py
-python scripts/check_graph.py
-python scripts/check_full_flow.py
-```
+1. 新增 API、页面、验收脚本
+2. 新增阶段十二或新开发阶段
+3. 修改 `app/agent`、`app/rag`、`app/llm`、`app/wecom`、`app/observability` 等核心实现
+4. 修改 `/api/ask` 响应结构、LangGraph 拓扑、数据库表结构
+
+## MVP 验收
+
+见 [ACCEPTANCE_CHECKLIST.md — MVP 最终验收](ACCEPTANCE_CHECKLIST.md#mvp-最终验收)。
+
+## 后续工作方式
+
+若需生产化开发，应：
+
+1. 单独立项并更新 `MASTER_PLAN.md`（新增强化阶段，非阶段十二自动延续）
+2. 用户明确确认范围后再编码
+3. 更新 `STAGE_CONTROL.md` 进入新模式
 
 确认前 Cursor 不应擅自开始新功能开发。
