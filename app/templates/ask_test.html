@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block title %}在线测试 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+    <h2 class="h4 mb-1">在线测试</h2>
+    <p class="text-muted small mb-0">阶段九：LangGraph 问答 + 用户反馈（Qdrant 检索 + LLM/MockLLM，当前 LLM_PROVIDER={{ llm_provider }}）。</p>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card-table p-3">
+            <form id="ask-form">
+                <div class="mb-3">
+                    <label class="form-label" for="question">问题 <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="question" rows="4" placeholder="请输入实施问题" required></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="user_id">user_id（可选）</label>
+                        <input class="form-control" id="user_id" placeholder="anonymous">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="group_id">group_id（可选）</label>
+                        <input class="form-control" id="group_id" placeholder="demo_group">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary" id="ask-submit">提问</button>
+            </form>
+        </div>
+    </div>
+    <div class="col-lg-5">
+        <div class="card-table p-3 mb-3">
+            <h3 class="h6">演示示例</h3>
+            <p class="small mb-2"><strong>命中示例：</strong>客户现场登录失败，提示账号无权限，应该怎么处理？</p>
+            <p class="small mb-0"><strong>未命中示例：</strong>客户打印模板套打偏移怎么处理？</p>
+        </div>
+        <div class="card-table p-3">
+            <h3 class="h6 mb-2">回答反馈</h3>
+            <p class="text-muted small mb-2">提问成功且存在 question_log_id 后可提交反馈，每条提问日志仅可反馈一次。</p>
+            <div class="d-flex gap-2 flex-wrap" id="feedback-panel">
+                <button type="button" class="btn btn-outline-success btn-sm" data-feedback-type="useful" disabled>有用</button>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-feedback-type="useless" disabled>无用</button>
+                <button type="button" class="btn btn-outline-warning btn-sm" data-feedback-type="need_human" disabled>需要人工处理</button>
+            </div>
+            <div id="feedback-message" class="alert mt-2 d-none" role="alert"></div>
+        </div>
+    </div>
+</div>
+
+<div id="ask-error" class="alert alert-danger mt-3 d-none"></div>
+
+<div id="ask-result" class="card-table p-3 mt-3 d-none">
+    <h3 class="h6 mb-3">回答结果</h3>
+    <dl class="row detail-dl mb-3">
+        <dt class="col-sm-3">是否命中</dt>
+        <dd class="col-sm-9" id="result-matched">-</dd>
+        <dt class="col-sm-3">相似度</dt>
+        <dd class="col-sm-9" id="result-score">-</dd>
+        <dt class="col-sm-3">question_log_id</dt>
+        <dd class="col-sm-9" id="result-log-id">-</dd>
+        <dt class="col-sm-3">fallback_reason</dt>
+        <dd class="col-sm-9" id="result-fallback">-</dd>
+        <dt class="col-sm-3">答案来源</dt>
+        <dd class="col-sm-9" id="result-sources">-</dd>
+    </dl>
+    <h4 class="h6">回答</h4>
+    <pre class="ask-answer-box mb-0" id="result-answer"></pre>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/ask_test.js"></script>
+{% endblock %}
+

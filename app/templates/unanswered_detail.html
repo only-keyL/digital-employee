@@ -1,0 +1,141 @@
+{% extends "layout.html" %}
+
+{% block title %}未命中详情 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="h4 mb-1">未命中问题详情</h2>
+        <p class="text-muted small mb-0">ID: {{ item.id }} · 阶段八：未命中沉淀闭环</p>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="/unanswered-questions{% if status_filter %}?status={{ status_filter }}{% endif %}">返回列表</a>
+</div>
+
+{% if page_error %}
+<div class="alert alert-danger">{{ page_error }}</div>
+{% elif item %}
+<div class="row g-3">
+    <div class="col-lg-7">
+        <div class="card-table p-3 mb-3">
+            <h3 class="h6 mb-3">问题信息</h3>
+            <dl class="row mb-0 detail-dl">
+                <dt class="col-sm-3">状态</dt>
+                <dd class="col-sm-9">
+                    {% if item.status == 'pending' %}
+                    <span class="badge text-bg-warning">pending</span>
+                    {% elif item.status == 'converted' %}
+                    <span class="badge text-bg-success">converted</span>
+                    {% elif item.status == 'ignored' %}
+                    <span class="badge text-bg-secondary">ignored</span>
+                    {% else %}
+                    <span class="badge text-bg-light text-dark">{{ item.status }}</span>
+                    {% endif %}
+                </dd>
+                <dt class="col-sm-3">频次</dt><dd class="col-sm-9">{{ item.frequency }}</dd>
+                <dt class="col-sm-3">问题全文</dt><dd class="col-sm-9 white-space-pre">{{ item.question }}</dd>
+                <dt class="col-sm-3">归一化问题</dt><dd class="col-sm-9">{{ item.normalized_question }}</dd>
+                <dt class="col-sm-3">摘要</dt><dd class="col-sm-9">{{ item.summary }}</dd>
+                <dt class="col-sm-3">系统/模块</dt><dd class="col-sm-9">{{ item.system_name or '-' }} / {{ item.module_name or '-' }}</dd>
+                <dt class="col-sm-3">标签</dt><dd class="col-sm-9">{{ item.tags or '-' }}</dd>
+            </dl>
+        </div>
+
+        {% if item.status == 'pending' %}
+        <div class="card-table p-3" id="draft-panel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="h6 mb-0">转为知识卡片 draft</h3>
+                <button type="button" class="btn btn-outline-primary btn-sm" id="btn-generate-draft">AI 生成草稿</button>
+            </div>
+            <form id="convert-form">
+                <div class="mb-3">
+                    <label class="form-label" for="draft-title">标题 <span class="text-danger">*</span></label>
+                    <input class="form-control" id="draft-title" required maxlength="200">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-question">标准问题 <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="draft-question" rows="3" required>{{ item.question }}</textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-answer">标准答案 <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="draft-answer" rows="4" required></textarea>
+                </div>
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label" for="draft-system">所属系统</label>
+                        <input class="form-control" id="draft-system" value="{{ item.system_name }}">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" for="draft-module">所属模块</label>
+                        <input class="form-control" id="draft-module" value="{{ item.module_name }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-tags">标签</label>
+                    <input class="form-control" id="draft-tags" value="{{ item.tags }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-troubleshooting">排查步骤</label>
+                    <textarea class="form-control" id="draft-troubleshooting" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-solution">处理建议</label>
+                    <textarea class="form-control" id="draft-solution" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="draft-risk">风险提醒</label>
+                    <textarea class="form-control" id="draft-risk" rows="2"></textarea>
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" id="btn-convert">确认转为知识卡片 draft</button>
+                    <button type="button" class="btn btn-outline-danger" id="btn-ignore">忽略</button>
+                </div>
+            </form>
+            <div id="draft-message" class="alert mt-3 d-none" role="alert"></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card-table p-3 mb-3">
+            <h3 class="h6 mb-3">关联信息</h3>
+            <dl class="row mb-0 detail-dl">
+                <dt class="col-sm-5">question_log_id</dt>
+                <dd class="col-sm-7">{{ item.question_log_id or '-' }}</dd>
+                <dt class="col-sm-5">convert_card_id</dt>
+                <dd class="col-sm-7">
+                    {% if item.convert_card_id %}
+                    <a href="/knowledge-cards/{{ item.convert_card_id }}">{{ item.convert_card_id }}</a>
+                    {% else %}-{% endif %}
+                </dd>
+                <dt class="col-sm-5">创建时间</dt><dd class="col-sm-7">{{ item.create_time }}</dd>
+                <dt class="col-sm-5">最近出现</dt><dd class="col-sm-7">{{ item.last_seen_time or '-' }}</dd>
+            </dl>
+        </div>
+        {% if item.status == 'converted' and item.convert_card_id %}
+        <div class="card-table p-3">
+            <h3 class="h6">已转出知识卡片</h3>
+            <p class="small text-muted mb-2">该记录为终态，请前往知识卡片完成人工审核。</p>
+            <a class="btn btn-outline-primary btn-sm" href="/knowledge-cards/{{ item.convert_card_id }}">查看知识卡片</a>
+        </div>
+        {% elif item.status == 'ignored' %}
+        <div class="card-table p-3">
+            <h3 class="h6">已忽略</h3>
+            <p class="small text-muted mb-0">该记录为终态。同题再次未命中将新建 pending 记录。</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% if item %}
+{% block extra_scripts %}
+<script>
+    window.UNANSWERED_DETAIL = {
+        id: {{ item.id }},
+        status: "{{ item.status }}"
+    };
+</script>
+<script src="/static/js/unanswered_detail.js"></script>
+{% endblock %}
+{% endif %}

@@ -1,0 +1,77 @@
+{% extends "layout.html" %}
+
+{% block title %}未命中问题 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">未命中问题</h2>
+    <span class="text-muted small">共 {{ total }} 条</span>
+</div>
+
+<div class="card-table p-3 mb-3">
+    <form class="row g-2 align-items-end" method="get" action="/unanswered-questions">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="status">状态筛选</label>
+            <select class="form-select form-select-sm" id="status" name="status">
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>pending（默认）</option>
+                <option value="" {% if status_filter == '' %}selected{% endif %}>全部</option>
+                <option value="converted" {% if status_filter == 'converted' %}selected{% endif %}>converted</option>
+                <option value="ignored" {% if status_filter == 'ignored' %}selected{% endif %}>ignored</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+        </div>
+    </form>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>问题/摘要</th>
+                <th>系统</th>
+                <th>频次</th>
+                <th>状态</th>
+                <th>最近出现</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.summary or item.question }}</td>
+                <td>{{ item.system_name or '-' }}</td>
+                <td>{{ item.frequency }}</td>
+                <td>
+                    {% if item.status == 'pending' %}
+                    <span class="badge text-bg-warning">pending</span>
+                    {% elif item.status == 'converted' %}
+                    <span class="badge text-bg-success">converted</span>
+                    {% elif item.status == 'ignored' %}
+                    <span class="badge text-bg-secondary">ignored</span>
+                    {% else %}
+                    <span class="badge text-bg-light text-dark">{{ item.status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.last_seen_time or item.create_time }}</td>
+                <td>
+                    <a class="btn btn-outline-primary btn-sm" href="/unanswered-questions/{{ item.id }}{% if status_filter %}?status={{ status_filter }}{% endif %}">详情</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="mb-1">暂无未命中问题</p>
+    <p class="text-muted small mb-0">在线测试提问未命中后，将自动记录到此列表（默认显示 pending）。</p>
+</div>
+{% endif %}
+{% endblock %}

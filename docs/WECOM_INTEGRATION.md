@@ -1,0 +1,114 @@
+# 企业微信真实接入指南（阶段十一预留）
+
+> **重要**：当前仓库仅完成企业微信**接口预留**与 **Mock 本地验收**，不代表已完成生产级上线。加密消息完整加解密需在真实接入前补齐。
+
+## 当前能力边界
+
+| 能力 | 状态 |
+|------|------|
+| `GET /api/wecom/callback` URL 验证 | Mock 可过；`WECOM_ENABLED=true` 时 SHA1 验签 |
+| `POST /api/wecom/mock/callback` JSON Mock | 默认开启，主验收入口 |
+| `POST /api/wecom/callback` 真实 XML | 预留；`WECOM_ENABLED=false` 返回 503 |
+| 复用 `AskService` / LangGraph | 已实现 |
+| AES 加密消息解密 | **未完整实现**（`app/wecom/crypto.py` 为预留） |
+| 主动群发 / 群机器人收消息 | **不支持** |
+
+## 人工配置步骤（真实企业微信）
+
+### 1. 创建自建应用
+
+1. 登录 [企业微信管理后台](https://work.weixin.qq.com/)
+2. 进入「应用管理」→「自建」→ 创建应用
+3. 记录：
+   - **CorpID**（企业 ID）→ `WECOM_CORP_ID`
+   - **AgentId** → `WECOM_AGENT_ID`
+   - **Secret** → `WECOM_SECRET`（用于未来主动发消息 API，本阶段回调不依赖）
+
+### 2. 开启接收消息
+
+1. 在应用详情中进入「接收消息」→「设置 API 接收」
+2. 填写回调 URL，例如：
+   ```text
+   https://{你的公网域名}/api/wecom/callback
+   ```
+3. 设置 **Token** → `WECOM_TOKEN`
+4. 设置 **EncodingAESKey**（43 字符）→ `WECOM_ENCODING_AES_KEY`
+5. 保存时企业微信会发起 `GET` URL 验证
+
+### 3. 本地开发网络
+
+企业微信服务器必须能访问你的回调 URL。本地开发需自行准备：
+
+- ngrok / frp / 云服务器公网 IP 等
+- **本仓库不提供** 公网穿透、域名备案、HTTPS 证书配置
+
+### 4. 配置 `.env`
+
+```env
+WECOM_ENABLED=true
+WECOM_MOCK_ENABLED=true
+WECOM_CORP_ID=你的CorpID
+WECOM_AGENT_ID=你的AgentId
+WECOM_SECRET=你的Secret
+WECOM_TOKEN=你的Token
+WECOM_ENCODING_AES_KEY=你的EncodingAESKey
+WECOM_CALLBACK_PATH=/api/wecom/callback
+WECOM_DEDUP_TTL_SECONDS=86400
+```
+
+重启 uvicorn 后生效。
+
+### 5. URL 验证
+
+企业微信后台保存回调配置时，会请求：
+
+```text
+GET /api/wecom/callback?msg_signature=...&timestamp=...&nonce=...&echostr=...
+```
+
+- `WECOM_ENABLED=true` 且 Token 正确时，服务会校验 SHA1 签名
+- **AES echostr 解密**：阶段十一未完整实现，验签通过后可能返回原始 echostr；生产前需补齐官方加解密
+
+### 6. 消息回调
+
+用户向应用发送文本消息后，企业微信 `POST` XML 到 `/api/wecom/callback`。
+
+阶段十一支持 **plain XML 文本消息** 预留；加密 XML（`<Encrypt>`）需补齐 `crypto.py` 后才能用于生产。
+
+## WECOM_BOT_KEY 说明
+
+`WECOM_BOT_KEY` 是**群机器人 Webhook** 的 Key，仅用于**未来主动发送消息**（如 `https://qyapi.weixin.qq.com/cgi-bin/webhook/send`）。
+
+- **不能** 用于模拟接收群消息
+- **本阶段代码不使用** `WECOM_BOT_KEY` 处理任何回调
+
+## 消息去重
+
+- 进程内 TTL 缓存，`dedup_key = msg_id`
+- 默认 TTL：`WECOM_DEDUP_TTL_SECONDS=86400`（24 小时）
+- **uvicorn 重启后缓存清空**
+- 多实例部署需 Redis 等外部存储，**本阶段不做**
+
+## 数据落库
+
+企业微信 Mock / 真实文本消息经 `AskService` 处理后：
+
+- `question_log.source_type = wecom`
+- 未命中继续写入 `unanswered_question`
+- 空问题不写 `question_log`
+
+## Mock 本地验收
+
+无需企业微信账号：
+
+```powershell
+python scripts/check_wecom_mock.py
+```
+
+## 生产前待补齐清单
+
+1. 完整实现企业微信官方 AES-CBC 加解密（`EncodingAESKey`）
+2. 加密 POST 消息体解析与被动回复加密
+3. 多实例去重（Redis / DB）
+4. HTTPS 公网域名与证书
+5. 监控与告警（可选）

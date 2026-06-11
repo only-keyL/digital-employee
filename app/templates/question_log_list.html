@@ -1,0 +1,50 @@
+{% extends "layout.html" %}
+
+{% block title %}提问日志 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">提问日志</h2>
+    <span class="text-muted small">共 {{ total }} 条</span>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>脱敏问题</th>
+                <th>命中</th>
+                <th>相似度</th>
+                <th>来源</th>
+                <th>提问人</th>
+                <th>耗时(ms)</th>
+                <th>时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td class="text-truncate-cell">{{ item.question_masked }}</td>
+                <td>{% if item.matched %}<span class="badge text-bg-success">是</span>{% else %}<span class="badge text-bg-secondary">否</span>{% endif %}</td>
+                <td>{{ item.similarity_score or "-" }}</td>
+                <td>{{ item.source_type }}</td>
+                <td>{{ item.user_id }}</td>
+                <td>{{ item.latency_ms or "-" }}</td>
+                <td>{{ item.create_time }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="mb-1">暂无提问日志</p>
+    <p class="text-muted small mb-0">阶段四接入 /api/ask 后，每次提问将自动写入日志（仅展示脱敏后问题）。</p>
+</div>
+{% endif %}
+{% endblock %}

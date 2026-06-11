@@ -1,0 +1,45 @@
+---
+description: 数字员工助手项目协作规则 — 阶段控制、分层约束与验收要求
+alwaysApply: true
+---
+
+# 数字员工助手 — 项目规则
+
+## 阶段控制（最高优先级）
+
+1. **每次先读取 `docs/STAGE_CONTROL.md`**，以其中「当前阶段」为唯一执行范围。
+2. **默认先进入计划模式**：输出方案、文件清单、验收方式；**未经用户明确确认不得执行**编码或改库。
+3. **每阶段只能做当前阶段**，**不得提前实现下一阶段**。
+4. **执行完成后必须更新 `docs/CURSOR_EXECUTION_LOG.md`**（追加一条完整记录）。
+5. **执行完成后不要自动进入下一阶段**，等待用户验收并口头确认。
+
+## 协作文件
+
+| 文件 | 用途 |
+|------|------|
+| `docs/MASTER_PLAN.md` | 总阶段与当前进度 |
+| `docs/STAGE_CONTROL.md` | 当前阶段目标与禁止事项 |
+| `docs/ACCEPTANCE_CHECKLIST.md` | 验收命令与通过标准 |
+| `docs/DECISIONS.md` | 已确定架构决策 |
+| `docs/CURSOR_EXECUTION_LOG.md` | 执行记录 |
+
+## 架构与代码约束
+
+1. 遵守 **Repository → Service → Router** 分层；页面与 API 共用 Service。
+2. **不得把 API Key 写死在代码**；使用 `.env` 与环境变量。
+3. **`app.main` 启动时不得强依赖** MySQL、Qdrant、LLM。
+4. 本地启动优先 **`127.0.0.1:8001`**（与 `.env` 中 `APP_PORT` 一致）。
+5. **企业微信真实接入是增强项**，不阻塞 MVP。
+
+## 问答 API 约定
+
+- `/api/ask` 使用**专用响应结构**，不使用 `{success, data, message}` 包装。
+- 阶段四：规则匹配；阶段五起：Qdrant 检索（按 `STAGE_CONTROL.md` 切换）。
+- 空问题不写 `question_log`。
+
+## 禁止行为
+
+- 未经确认擅自开始下一阶段。
+- 在阶段五确认前实现 Qdrant / Embedding / DeepSeek / LangGraph / LangSmith。
+- 绕过分层直接在 Router 里写 SQL 或业务逻辑。
+- 执行完成后省略 `CURSOR_EXECUTION_LOG.md` 更新。

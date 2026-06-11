@@ -1,0 +1,42 @@
+{% extends "layout.html" %}
+
+{% block title %}控制台 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="hero-card">
+    <h2 class="h3 mb-3">企业微信数字员工助手</h2>
+    <p class="lead">
+        面向企业微信实施群的知识沉淀型数字员工 Demo。当前为<strong>阶段十一：企业微信接口预留</strong>，Mock 回调复用 LangGraph 问答链路。
+    </p>
+    <p class="text-muted mb-4">
+        Mock 回调可本地验收；真实企业微信上线需人工配置，详见 docs/WECOM_INTEGRATION.md。不影响 /ask-test。
+    </p>
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="/ask-test">在线测试</a>
+        <a class="btn btn-outline-primary" href="/knowledge-cards">知识卡片列表</a>
+        <a class="btn btn-outline-secondary" href="/statistics">统计看板</a>
+        <a class="btn btn-outline-secondary" href="/api/health" target="_blank" rel="noopener">健康检查 JSON</a>
+    </div>
+</div>
+
+<div class="row g-3 mt-2">
+    <div class="col-md-4">
+        <div class="info-card">
+            <h3 class="h6">当前环境</h3>
+            <p class="mb-0">{{ app_env }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-card">
+            <h3 class="h6">LLM Provider</h3>
+            <p class="mb-0">{{ llm_provider }}</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="info-card">
+            <h3 class="h6">Embedding Provider</h3>
+            <p class="mb-0">{{ embedding_provider }}</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

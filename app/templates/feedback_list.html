@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+
+{% block title %}用户反馈 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">用户反馈</h2>
+    <span class="text-muted small">共 {{ total }} 条</span>
+</div>
+
+<div class="card-table p-3 mb-3">
+    <form class="row g-2 align-items-end" method="get" action="/feedback">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="feedback_type">反馈类型</label>
+            <select class="form-select form-select-sm" id="feedback_type" name="feedback_type">
+                <option value="" {% if feedback_type_filter == '' %}selected{% endif %}>全部</option>
+                <option value="useful" {% if feedback_type_filter == 'useful' %}selected{% endif %}>useful / 有用</option>
+                <option value="useless" {% if feedback_type_filter == 'useless' %}selected{% endif %}>useless / 无用</option>
+                <option value="need_human" {% if feedback_type_filter == 'need_human' %}selected{% endif %}>need_human / 需人工</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+        </div>
+    </form>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>提问日志ID</th>
+                <th>问题摘要</th>
+                <th>反馈类型</th>
+                <th>反馈人</th>
+                <th>评论</th>
+                <th>时间</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.question_log_id }}</td>
+                <td>{{ item.question_summary or '-' }}</td>
+                <td>
+                    {% if item.feedback_type == 'useful' %}
+                    <span class="badge text-bg-success">useful</span>
+                    {% elif item.feedback_type == 'useless' %}
+                    <span class="badge text-bg-danger">useless</span>
+                    {% elif item.feedback_type == 'need_human' %}
+                    <span class="badge text-bg-warning text-dark">need_human</span>
+                    {% else %}
+                    <span class="badge text-bg-primary">{{ item.feedback_type }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.user_id }}</td>
+                <td>{{ item.comment or '-' }}</td>
+                <td>{{ item.create_time }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="mb-1">暂无用户反馈</p>
+    <p class="text-muted small mb-0">可在 /ask-test 页面对有效提问提交有用 / 无用 / 需要人工处理反馈。</p>
+</div>
+{% endif %}
+{% endblock %}
+

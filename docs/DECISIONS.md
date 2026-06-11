@@ -1,0 +1,129 @@
+# 架构决策记录（ADR 简版）
+
+> 已确定决策。新阶段若需变更，先在本文件追加记录并征得用户确认，再改代码。
+
+## 已确定决策
+
+### 1. 技术栈与前端形态
+
+- **FastAPI + Jinja2**，不做前后端分离。
+- 管理页与在线测试页以服务端渲染 + 少量静态 JS 为主。
+
+### 2. 数据存储
+
+- **MySQL 是业务主库**：知识卡片、提问日志、未命中问题、反馈等。
+- **Qdrant 是向量检索库**（阶段五接入）：仅承载 embedding 与相似度检索，不替代 MySQL 主数据。
+
+### 3. 企业微信
+
+- **企业微信真实接入不阻塞 MVP**，作为阶段十一增强项预留接口。
+
+### 4. 本地运行约定
+
+- 本地启动优先使用 **`127.0.0.1:8001`**。
+- 验收脚本从 `.env` 读取 `APP_HOST` / `APP_PORT`，默认 `127.0.0.1` / `8001`。
+
+### 5. 知识卡片生命周期
+
+- **新建知识卡片默认 `draft`**。
+- **`approved` 卡片编辑后仍保持 `approved`**，但 `version+1`、`content_hash` 重算、**`vector_status=pending`**（待阶段五同步向量）。
+
+### 6. 问答 API 演进
+
+- **阶段四**：`/api/ask` 使用**规则匹配**模拟知识库命中（含「登录」或「权限」→ 查 MySQL seed 卡片）。
+- **阶段五**：规则匹配**替换为 Qdrant 向量检索**（仍不接 LLM 生成答案）。
+- **`/api/ask` 使用专用响应结构**，不使用 `{success, data, message}` 包装。
+
+### 7. 提问与日志
+
+- **空问题（空或全空格）不写 `question_log`**，不写 `unanswered_question`，返回 `question_log_id=null`。
+- 阶段四 `question_masked` 暂等于原始问题（完整脱敏留待后续阶段）。
+
+### 8. 分层与启动
+
+- 必须遵守 **Repository / Service / Router** 分层，API 与页面共用 Service。
+- **`app.main` 启动时不得强依赖** MySQL、Qdrant、LLM；连接失败应在运行时或脚本层处理，避免 import 即崩溃。
+
+### 9. 安全
+
+- **不得把 API Key 写死在代码或提交到仓库**；使用 `.env` 与环境变量。
+
+### 10. 阶段边界
+
+- **每阶段只做当前阶段**，不得提前实现下一阶段能力。
+- 阶段完成后更新 `CURSOR_EXECUTION_LOG.md`，**不自动进入下一阶段**。
+
+### 11. 阶段五向量检索（已确定）
+
+- **Embedding 默认**：`fastembed` + `BAAI/bge-small-zh-v1.5`，维度 512
+- **Qdrant**：local mode，`./storage/qdrant`，collection `knowledge_cards`，COSINE 距离
+- **检索参数**：`top_k=5`，`similarity_threshold=0.75`（未达阈值视为未命中）
+- **Point ID**：`knowledge_card.id`；向量文本与 `content_hash` 同源
+- **答案**：阶段五仍拼接知识卡片字段，前缀「阶段五模拟回答」
+- **Qdrant 失败**：不回滚 MySQL；`vector_status=failed` 记录 `vector_error`
+
+### 12. 阶段六 LLM 答案生成（已确定）
+
+- **默认** `LLM_PROVIDER=mock`，无 Key 可演示
+- **Provider 规则**：mock / deepseek（有 Key）/ deepseek 无 Key 或失败 → 降级 MockLLM → 模板回答
+- **调用链**：AskService → RetrievalService → AnswerGenerationService → PromptService → LLMFactory
+- **matched** 仅由 Qdrant 检索决定；LLM 失败时仍 `matched=true` 并降级
+- **sources / similarity_score** 来自检索，不由 LLM 决定
+- **质检**：DeepSeek 模式执行 quality prompt；Mock 模式跳过二次质检
+- 不接 LangGraph / LangSmith
+
+### 13. 阶段七 LangGraph 编排（已确定）
+
+- **定位**：LangGraph 只做流程编排，节点薄封装现有 Service，不重写检索/LLM
+- **节点**：8 个精简节点（validate / preprocess / retrieve / match_judge / generate / handle_miss / error_fallback / write_log）
+- **不做**：LangSmith、多 Agent、脱敏、意图识别、问题改写、高风险分支、未命中 LLM 总结
+- **Session**：Graph 进程内懒编译；每请求通过 `RunnableConfig["configurable"]["db"]` 注入 Session，不缓存 Session
+- **响应**：`AskResponse` 结构与阶段六一致；`AskService` 负责 state 映射
+- **日志**：`AskLogService` 统一写 `question_log` / `unanswered_question`，规则与阶段四至六一致
+- **验收**：`scripts/check_graph.py` 为阶段七主验收脚本
+
+### 14. 阶段八未命中沉淀闭环（已确定）
+
+- **状态**：`pending` → `converted` / `ignored`（终态，不可回退）
+- **同题再未命中**：旧记录 converted/ignored 后新建 `pending`，不复活旧记录
+- **generate-draft**：仅预览，不写库、不同步 Qdrant
+- **convert**：`KnowledgeService.create_draft_without_commit` + 同事务标记 `converted` + `convert_card_id`
+- **draft 规则**：`audit_status=draft`，`vector_status=pending`，禁止自动 approved
+- **Qdrant**：仅审核 approved 后复用阶段五 `VectorSyncService`
+- **验收**：`scripts/check_unanswered_flow.py`
+
+### 15. 阶段九反馈与统计（已确定）
+
+- **反馈类型**：`useful` / `useless` / `need_human`
+- **关联**：必须绑定 `question_log_id`；空问题 `question_log_id=null` 不可反馈
+- **防重复**：每个 `question_log_id` 仅 1 条反馈（应用层，不改表）
+- **满意度**：`useful / (useful + useless)`；`need_human` 不计入分母
+- **未命中率**：基于 `question_log.matched`，非 `unanswered_question` 表
+- **Top 未命中**：`unanswered_question` pending，frequency DESC
+- **Top 负反馈**：useless 按 `question_masked` 聚合
+- **验收**：`scripts/check_feedback_stats.py`；反馈不进 LangGraph
+
+### 16. 阶段十 LangSmith 观测（已确定）
+
+- **主配置**：`LANGSMITH_TRACING` / `LANGSMITH_API_KEY` / `LANGSMITH_PROJECT` / `LANGSMITH_ENDPOINT` / `LANGSMITH_HIDE_INPUTS` / `LANGSMITH_HIDE_OUTPUTS`；不以 `LANGCHAIN_*` 作为主配置
+- **默认关闭**：无 Key 时 `is_langsmith_enabled=false`；问答不受影响
+- **隐私**：默认隐藏 inputs/outputs；metadata 仅含安全字段（问题长度、命中率、耗时等），禁止问题/答案/卡片正文
+- **trace_id**：写入 `question_log.langsmith_trace_id`，不返回前端
+- **降级**：LangSmith 任何异常自动降级普通 `graph.invoke`，不影响 `/api/ask`
+- **封装**：`TraceService` 统一处理 tracing；`LANGCHAIN_*` 仅在 TraceService 内临时设置
+- **验收**：`scripts/check_langsmith.py`（关闭模式必过；有 Key 时 enabled 模式）
+
+### 17. 阶段十一企业微信接口预留（已确定）
+
+- **路径分离**：`GET/POST /api/wecom/callback`（真实预留）与 `POST /api/wecom/mock/callback`（JSON Mock）分开
+- **默认**：`WECOM_ENABLED=false`、`WECOM_MOCK_ENABLED=true`；配置缺失不影响启动
+- **链路**：`WecomCallbackService` → `AskRequest(source_type=wecom)` → `AskService` → LangGraph
+- **去重**：进程内 TTL，`dedup_key=msg_id`；重复返回缓存 XML，不新增 `question_log`
+- **回复**：被动文本 XML，Content 截断 2048 字符；不返回 `AskResponse` JSON
+- **WECOM_BOT_KEY**：仅文档预留主动发送，代码不用于回调
+- **加解密**：`crypto.py` 预留；AES 未完整实现，生产前需补齐
+- **验收**：`scripts/check_wecom_mock.py`
+
+## 待后续增强决策（占位）
+
+- 企业微信生产级 AES 加解密与多实例去重方案

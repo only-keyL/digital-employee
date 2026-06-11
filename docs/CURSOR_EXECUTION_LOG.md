@@ -1,0 +1,396 @@
+# Cursor 执行日志
+
+> 每轮 Cursor 执行完成后追加一条记录。GPT 与用户可据此同步进度，减少跨工具复制粘贴。
+
+---
+
+## 记录模板（复制本节填写新条目）
+
+```markdown
+### 阶段 X — YYYY-MM-DD HH:MM
+
+**执行时间**：YYYY-MM-DD HH:MM（本地）
+
+**创建文件**
+- `path/to/file` — 简要说明
+
+**修改文件**
+- `path/to/file` — 简要说明
+
+**实现内容**
+- 要点 1
+- 要点 2
+
+**未实现内容**
+- 明确未做项 1
+- 明确未做项 2
+
+**验收命令**
+```powershell
+python scripts/xxx.py
+```
+
+**自检结果**
+- [ ] 通过 / [ ] 失败 — 说明
+
+**需要用户处理事项**
+- 无 / 或列出需人工步骤
+```
+
+---
+
+## 历史记录
+
+### 阶段四 — 2026-06-11（阶段四业务实现，由对话摘要归档）
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/schemas/ask_schema.py` — Ask 请求/响应模型
+- `app/services/rule_matcher.py` — 规则匹配
+- `app/services/ask_service.py` — 问答编排与写库
+- `app/routers/ask_router.py` — POST /api/ask
+- `app/templates/ask_test.html` — 在线测试页
+- `scripts/check_full_flow.py` — 完整流程 HTTP 验收
+
+**修改文件**
+- `app/repositories/knowledge_repository.py` — 登录权限 seed 卡片查询
+- `app/repositories/question_repository.py` — question_log 写入
+- `app/repositories/unanswered_repository.py` — 未命中合并与 frequency
+- `app/main.py`、`page_router.py`、`layout.html`、`main.js`、`index.html`、`README.md`
+
+**实现内容**
+- `/ask-test` 与 `/api/ask` 规则匹配假问答闭环
+- question_log / unanswered_question 写入与 frequency 递增
+- 专用 AskResponse，空问题不写库
+
+**未实现内容**
+- Qdrant、Embedding、DeepSeek、LangGraph、LangSmith、真实 RAG、LLM 生成、反馈提交、企微接入
+
+**验收命令**
+```powershell
+python scripts/seed_knowledge.py
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+python scripts/check_full_flow.py
+```
+
+**自检结果**
+- [x] 通过 — check_full_flow / health / seed / db 均为 0
+
+**需要用户处理事项**
+- 确保 MySQL 可用、seed 已导入；8001 端口未被占用或同步改 APP_PORT
+
+---
+
+### 项目管理文件 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `docs/MASTER_PLAN.md` — 总阶段规划
+- `docs/STAGE_CONTROL.md` — 阶段五占位与控制
+- `docs/ACCEPTANCE_CHECKLIST.md` — 验收清单
+- `docs/DECISIONS.md` — 架构决策
+- `docs/CURSOR_EXECUTION_LOG.md` — 本日志
+- `.cursor/rules/project.mdc` — Cursor 项目规则
+
+**修改文件**
+- 无（本轮不修改业务代码）
+
+**实现内容**
+- 建立「文件驱动协作」文档体系
+
+**未实现内容**
+- 阶段五及以后所有业务功能
+
+**验收命令**
+- 无（文档轮次）
+
+**自检结果**
+- [x] 通过 — 仅新增文档与规则文件
+
+**需要用户处理事项**
+- 无
+
+---
+
+### 阶段五 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/rag/embedding_service.py` — fastembed / openai_compatible / mock Embedding
+- `app/rag/qdrant_store.py` — Qdrant local collection 封装
+- `app/services/vector_sync_service.py` — MySQL ↔ Qdrant 同步编排
+- `app/services/retrieval_service.py` — 向量检索编排
+- `scripts/rebuild_qdrant.py` — 全量重建向量库（支持 --recreate）
+- `scripts/check_rag.py` — RAG 验收脚本
+
+**修改文件**
+- `app/services/ask_service.py`、`knowledge_service.py`、`knowledge_router.py`
+- `app/repositories/knowledge_repository.py`、`app/services/__init__.py`
+- `scripts/check_full_flow.py`、`ask_test.html`、`index.html`、`.gitignore`
+- `README.md`、`docs/MASTER_PLAN.md`、`STAGE_CONTROL.md`、`ACCEPTANCE_CHECKLIST.md`、`DECISIONS.md`
+
+**实现内容**
+- fastembed 懒加载 + Qdrant local 检索 + 知识卡片向量同步
+- `/api/ask` 切换为向量检索，答案仍为字段拼接
+
+**未实现内容**
+- DeepSeek、MockLLM、LangChain、LangGraph、LangSmith、LLM 生成、问题改写、脱敏、反馈、未命中转卡片、企微
+
+**验收命令**
+```powershell
+python scripts/rebuild_qdrant.py --recreate
+python scripts/check_rag.py
+python scripts/check_full_flow.py
+```
+
+**自检结果**
+- [x] rebuild / check_rag / check_full_flow(8002) / health / seed / db 均通过
+
+**需要用户处理事项**
+- 重启 8001 旧 uvicorn 后再验收；fastembed 首次需联网下载模型
+
+---
+
+### 阶段六 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/llm/base.py`、`deepseek_client.py`、`mock_llm.py`、`llm_factory.py`、`prompt_service.py`
+- `app/prompts/answer_prompt.py`、`quality_check_prompt.py`
+- `app/services/answer_generation_service.py`
+- `scripts/check_llm.py`
+
+**修改文件**
+- `app/services/ask_service.py`、`app/routers/ask_router.py`、`app/config/settings.py`
+- `scripts/check_full_flow.py`、`ask_test.html`、`index.html`、`.env.example`
+- `README.md`、`docs/*`
+
+**实现内容**
+- 统一 LLM 调用链：Retrieval → AnswerGeneration → PromptService → LLMFactory
+- MockLLM 本地验收；DeepSeek 失败自动降级
+- 命中后 LLM 生成答案，保留 Qdrant 检索与 sources
+
+**未实现内容**
+- LangGraph、LangSmith、问题改写、脱敏、反馈、未命中转卡片、企微
+
+**验收命令**
+```powershell
+python scripts/check_llm.py
+python scripts/check_full_flow.py
+```
+
+**自检结果**
+- [x] 代码完成；需重启单实例 uvicorn 后跑 check_llm（Qdrant local 不支持多进程同时访问）
+
+**需要用户处理事项**
+- 停止旧 uvicorn 后重启 `python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001`
+
+---
+
+### 阶段七 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/agent/ask_state.py` — AskState TypedDict
+- `app/agent/constants.py` — 兜底话术与路由常量
+- `app/agent/nodes.py` — 8 个 LangGraph 节点（薄封装 Service）
+- `app/agent/workflow.py` — StateGraph 构建与懒编译
+- `app/agent/graph_runner.py` — 每请求 Session 注入
+- `app/services/ask_log_service.py` — question_log / unanswered_question 写库
+- `scripts/check_graph.py` — 阶段七主验收脚本
+
+**修改文件**
+- `app/services/ask_service.py` — 改为 Graph 入口 + AskResponse 映射
+- `app/agent/__init__.py`、`app/templates/index.html`、`app/templates/ask_test.html`
+- `README.md`、`docs/STAGE_CONTROL.md`、`docs/ACCEPTANCE_CHECKLIST.md`、`docs/DECISIONS.md`
+
+**实现内容**
+- `/api/ask` 从串行 Service 切换为 LangGraph 8 节点编排
+- 复用 RetrievalService、AnswerGenerationService；日志抽出 AskLogService
+- 空问题 / 命中 / 未命中 / 检索异常 / LLM 降级路径与阶段六一致
+- AskResponse 结构不变；不接 LangSmith / 多 Agent
+
+**未实现内容**
+- LangSmith、多 Agent、脱敏、意图识别、问题改写、高风险、未命中 LLM 总结、反馈、企微、未命中转卡片
+
+**验收命令**
+```powershell
+python scripts/seed_knowledge.py
+python scripts/rebuild_qdrant.py --recreate
+python scripts/check_rag.py
+python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+python scripts/check_graph.py
+python scripts/check_llm.py
+python scripts/check_full_flow.py
+```
+
+**自检结果**
+- [x] check_graph / check_llm / check_full_flow / check_health / check_db / check_seed_data 通过（8001 单实例）
+
+**需要用户处理事项**
+- 完整验收前仍建议：停服务 → seed → rebuild_qdrant --recreate → check_rag → 重启单实例 → 全量脚本
+
+---
+
+### 阶段八 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/schemas/unanswered_schema.py` — 未命中 API 模型
+- `app/services/unanswered_convert_service.py` — convert / ignore
+- `app/services/unanswered_draft_service.py` — AI/Mock 草稿预览
+- `app/prompts/knowledge_draft_prompt.py` — 草稿 Prompt
+- `app/routers/unanswered_router.py` — 未命中 REST API
+- `app/templates/unanswered_detail.html` — 详情页
+- `app/static/js/unanswered_detail.js` — 详情页交互
+- `scripts/check_unanswered_flow.py` — 阶段八主验收
+
+**修改文件**
+- `app/repositories/unanswered_repository.py`、`app/services/unanswered_service.py`
+- `app/services/knowledge_service.py` — `create_draft_without_commit`
+- `app/llm/prompt_service.py`、`app/llm/mock_llm.py`
+- `app/routers/page_router.py`、`app/templates/unanswered_list.html`、`app/templates/layout.html`
+- `app/main.py`、`app/templates/index.html`、`README.md`、`docs/*`
+
+**实现内容**
+- pending 未命中可 AI 预览、转 draft、ignore；converted/ignored 终态
+- convert 与 unanswered 更新同事务；draft 不 sync Qdrant
+- 列表默认 pending 筛选；详情页闭环操作
+
+**未实现内容**
+- 反馈、LangSmith、企微、统计大改、批量 ignore、工单
+
+**验收命令**
+```powershell
+python scripts/check_unanswered_flow.py
+python scripts/check_graph.py
+python scripts/check_full_flow.py
+```
+
+**自检结果**
+- [x] check_unanswered_flow / check_graph / check_llm / check_full_flow / check_health / check_db / check_seed_data 通过（8001 单实例）
+
+**需要用户处理事项**
+- 完整验收前仍建议：停服务 → seed → rebuild_qdrant --recreate → check_rag → 重启单实例
+
+---
+
+### 阶段九 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/schemas/feedback_schema.py` — 反馈 API 模型
+- `app/routers/feedback_router.py` — POST/GET /api/feedback
+- `app/routers/statistics_router.py` — GET /api/statistics/dashboard
+- `app/static/js/ask_test.js` — /ask-test 提问与反馈交互
+- `scripts/check_feedback_stats.py` — 阶段九主验收
+
+**修改文件**
+- `app/repositories/feedback_repository.py`、`app/repositories/question_repository.py`
+- `app/repositories/statistics_repository.py`
+- `app/services/feedback_service.py`、`app/services/statistics_service.py`
+- `app/templates/ask_test.html`、`app/templates/feedback_list.html`、`app/templates/statistics.html`
+- `app/static/js/main.js`、`app/routers/page_router.py`、`app/main.py`
+- `app/templates/index.html`、`README.md`、`docs/*`
+
+**实现内容**
+- 反馈提交 useful/useless/need_human；每 question_log_id 仅一次
+- /ask-test 启用反馈按钮；统计看板增强指标与 Top 榜单
+
+**未实现内容**
+- LangSmith、企微、工单、BI 图表、反馈改删
+
+**验收命令**
+```powershell
+python scripts/check_feedback_stats.py
+```
+
+**自检结果**
+- [x] check_feedback_stats / check_unanswered_flow / check_graph / check_llm / check_full_flow / check_health / check_db / check_seed_data 通过（8001 单实例）
+
+---
+
+### 阶段十 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/observability/__init__.py` — 观测模块入口
+- `app/observability/redaction.py` — 安全 metadata 构造
+- `app/observability/trace_service.py` — LangSmith tracing 封装
+- `scripts/check_langsmith.py` — 阶段十主验收（关闭/开启双模式）
+
+**修改文件**
+- `app/config/settings.py` — `langsmith_endpoint`、`langsmith_hide_inputs`、`langsmith_hide_outputs`
+- `app/agent/graph_runner.py` — 可选 TraceService 接入
+- `app/repositories/question_repository.py` — `update_langsmith_trace_id`
+- `.env.example`、`README.md`、`app/templates/index.html`、`docs/*`
+
+**实现内容**
+- LangSmith 默认关闭；无 Key 可运行
+- TraceService 封装 tracing、降级、trace_id 落库
+- 默认隐藏 inputs/outputs；metadata 仅安全字段
+- `question_log.langsmith_trace_id` 在 graph.invoke 后 UPDATE
+
+**未实现内容**
+- 企业微信、LangSmith Feedback、告警、trace_id 返回前端、改表
+
+**验收命令**
+```powershell
+python scripts/check_langsmith.py
+python scripts/check_feedback_stats.py
+python scripts/check_unanswered_flow.py
+python scripts/check_graph.py
+```
+
+**自检结果**
+- [x] check_rag / check_langsmith (disabled) / check_feedback_stats / check_unanswered_flow / check_graph / check_llm / check_full_flow / check_health / check_seed_data / check_db 通过（8001 单实例）
+
+**需要用户处理事项**
+- 可选：在 `.env` 配置 `LANGSMITH_API_KEY` 并设 `LANGSMITH_TRACING=true`，重启 uvicorn 后跑 `check_langsmith.py` 验证 enabled 模式
+
+---
+
+### 阶段十一 — 2026-06-11
+
+**执行时间**：2026-06-11
+
+**创建文件**
+- `app/wecom/__init__.py`、`constants.py`、`schemas.py`、`message_parser.py`
+- `app/wecom/response_builder.py`、`url_verify.py`、`crypto.py`、`dedup_store.py`
+- `app/services/wecom_callback_service.py`、`app/routers/wecom_router.py`
+- `scripts/check_wecom_mock.py`、`docs/WECOM_INTEGRATION.md`
+
+**修改文件**
+- `app/config/settings.py`、`app/main.py`、`app/routers/page_router.py`
+- `app/templates/layout.html`、`app/templates/index.html`
+- `.env.example`、`README.md`、`docs/*`
+
+**实现内容**
+- GET/POST `/api/wecom/callback` 预留；POST Mock `/api/wecom/mock/callback`
+- 复用 AskService/LangGraph；source_type=wecom；进程内 msg_id 去重
+- 顶栏 WeCom ON/OFF + WeCom Mock Badge
+
+**未实现内容**
+- 生产级 AES 加解密、主动群发、Redis 去重、真实上线
+
+**验收命令**
+```powershell
+python scripts/check_wecom_mock.py
+python scripts/check_langsmith.py
+python scripts/check_graph.py
+```
+
+**自检结果**
+- [x] check_wecom_mock / check_langsmith / check_feedback_stats / check_unanswered_flow / check_graph / check_llm / check_full_flow / check_health / check_seed_data / check_db 通过（8001 单实例）
+
+**需要用户处理事项**
+- 完整验收前建议：停服务 → seed → rebuild_qdrant --recreate → check_rag → 重启单实例
+- 真实企业微信上线见 `docs/WECOM_INTEGRATION.md`（需公网与后台配置）
