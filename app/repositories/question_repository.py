@@ -6,6 +6,8 @@ from app.repositories.base_repository import BaseRepository
 
 
 class QuestionRepository(BaseRepository[QuestionLog]):
+    """问答日志（question_log）数据访问。"""
+
     def __init__(self, session: Session) -> None:
         super().__init__(session, QuestionLog)
 
@@ -55,6 +57,7 @@ class QuestionRepository(BaseRepository[QuestionLog]):
         self.session.commit()
 
     def update_langsmith_trace_id(self, log_id: int, trace_id: str) -> None:
+        """回写 LangSmith 追踪 ID 到指定问答日志。"""
         log = self.session.get(QuestionLog, log_id)
         if log is not None:
             log.langsmith_trace_id = trace_id

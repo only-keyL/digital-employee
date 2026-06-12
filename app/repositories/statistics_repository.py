@@ -1,3 +1,5 @@
+"""统计看板数据聚合（跨仓储汇总计数）。"""
+
 from sqlalchemy.orm import Session
 
 from app.repositories.feedback_repository import FeedbackRepository
@@ -7,6 +9,8 @@ from app.repositories.unanswered_repository import UnansweredRepository
 
 
 class StatisticsRepository:
+    """聚合问答、反馈、知识库、未命中等指标供 dashboard 使用。"""
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self.knowledge_repo = KnowledgeRepository(session)
@@ -15,6 +19,7 @@ class StatisticsRepository:
         self.feedback_repo = FeedbackRepository(session)
 
     def get_dashboard_counts(self) -> dict:
+        """计算看板全部计数与比率（命中率、满意度等）。"""
         total_questions = self.question_repo.count_logs()
         matched_questions = self.question_repo.count_matched()
         missed_questions = max(total_questions - matched_questions, 0)

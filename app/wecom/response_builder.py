@@ -21,6 +21,7 @@ def _truncate_content(text: str, *, max_length: int = MAX_XML_CONTENT_LENGTH) ->
 
 
 def build_fixed_reply(message: WecomInboundMessage, content: str) -> str:
+    """构建固定文本内容的被动回复 XML。"""
     safe_content = _truncate_content(_escape_cdata_content(content))
     create_time = message.create_time or int(time.time())
     return (
@@ -35,6 +36,7 @@ def build_fixed_reply(message: WecomInboundMessage, content: str) -> str:
 
 
 def build_text_reply(message: WecomInboundMessage, ask_response: AskResponse) -> str:
+    """将 AskResponse 转为企业微信被动文本回复 XML。"""
     content = (ask_response.answer or "").strip()
     if not content and ask_response.fallback_reason:
         content = ask_response.fallback_reason

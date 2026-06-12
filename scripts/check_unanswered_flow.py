@@ -1,4 +1,7 @@
-"""Unanswered question沉淀闭环 acceptance script for Phase 8."""
+"""未命中问题沉淀闭环验收脚本（阶段八）。
+
+验证 generate-draft、convert、ignore 等未命中问题处理流程。
+"""
 
 from __future__ import annotations
 
@@ -13,11 +16,14 @@ if str(ROOT) not in sys.path:
 
 from app.config.settings import settings
 
+# 用于 convert 流程测试的未命中问题
 CONVERT_QUESTION = "阶段八测试：客户打印模板套打整体向右偏移应该怎么处理？"
+# 用于 ignore 流程测试的未命中问题
 IGNORE_QUESTION = "阶段八测试：客户报表导出超时应该怎么处理？"
 
 
 def _api_base_url() -> str:
+    """根据配置拼出本地 API 基址。"""
     host = settings.app_host
     if host in {"0.0.0.0", "::"}:
         host = "127.0.0.1"
@@ -25,6 +31,7 @@ def _api_base_url() -> str:
 
 
 def _find_pending_by_question(client: httpx.Client, base_url: str, question: str) -> dict | None:
+    """在 pending 列表中按问题原文查找未命中记录。"""
     resp = client.get(f"{base_url}/api/unanswered-questions", params={"status": "pending", "page_size": 100})
     resp.raise_for_status()
     payload = resp.json()
@@ -37,6 +44,7 @@ def _find_pending_by_question(client: httpx.Client, base_url: str, question: str
 
 
 def main() -> int:
+    """执行未命中沉淀闭环验收，返回进程退出码。"""
     base_url = _api_base_url()
     health_url = f"{base_url}/api/health"
     ask_url = f"{base_url}/api/ask"

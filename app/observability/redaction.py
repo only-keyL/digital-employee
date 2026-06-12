@@ -11,7 +11,7 @@ _FALLBACK_REASON_MAX_LEN = 120
 
 
 def build_safe_metadata(state: AskState) -> dict[str, Any]:
-    """Build metadata that is safe to send to LangSmith."""
+    """构建可安全上报 LangSmith 的元数据（不含原文、密钥等敏感信息）。"""
     settings = get_settings()
 
     question_raw = state.get("question_raw") or ""

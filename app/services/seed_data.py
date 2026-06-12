@@ -1,4 +1,4 @@
-"""Demo knowledge card seed definitions."""
+"""演示用知识卡片种子数据定义。"""
 
 SEED_KNOWLEDGE_CARDS = [
     {

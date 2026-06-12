@@ -15,6 +15,7 @@ def _text_or_empty(element: ET.Element | None) -> str:
 
 
 def parse_mock_request(payload: WecomMockCallbackRequest) -> WecomInboundMessage:
+    """将 Mock JSON 请求转为统一入站消息结构。"""
     return WecomInboundMessage(
         msg_id=payload.msg_id,
         from_user=payload.from_user or "wecom_user_demo",
@@ -27,6 +28,7 @@ def parse_mock_request(payload: WecomMockCallbackRequest) -> WecomInboundMessage
 
 
 def parse_plain_xml(body: str) -> WecomInboundMessage | None:
+    """解析明文 XML 回调体为入站消息，解析失败返回 None。"""
     text = (body or "").strip()
     if not text:
         return None

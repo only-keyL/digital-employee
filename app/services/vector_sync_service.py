@@ -10,10 +10,13 @@ from app.repositories.knowledge_repository import KnowledgeRepository
 
 
 def should_index_card(card: KnowledgeCard) -> bool:
+    """判断知识卡片是否应写入 Qdrant（已审核、已启用、未删除）。"""
     return card.deleted == 0 and card.audit_status == "approved" and card.enabled == 1
 
 
 class VectorSyncService:
+    """MySQL 知识卡片与 Qdrant 向量索引同步服务。"""
+
     def __init__(
         self,
         session: Session,

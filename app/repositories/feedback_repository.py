@@ -1,3 +1,5 @@
+"""用户反馈数据访问层。"""
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -7,6 +9,8 @@ from app.repositories.base_repository import BaseRepository
 
 
 class FeedbackRepository(BaseRepository[FeedbackLog]):
+    """feedback_log 表查询与统计。"""
+
     def __init__(self, session: Session) -> None:
         super().__init__(session, FeedbackLog)
 
@@ -62,6 +66,7 @@ class FeedbackRepository(BaseRepository[FeedbackLog]):
         return list(self.session.execute(stmt).all())
 
     def top_negative_feedback(self, limit: int = 10) -> list[dict]:
+        """统计「无用」反馈最多的问题摘要（看板用）。"""
         stmt = (
             select(
                 QuestionLog.question_masked.label("question_summary"),

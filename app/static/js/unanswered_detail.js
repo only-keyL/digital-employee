@@ -1,3 +1,7 @@
+/**
+ * 未命中问题详情页脚本（status=pending 时生效）。
+ * 支持 AI 生成草稿预览、转为知识卡片 draft、忽略未命中问题。
+ */
 (function () {
     const config = window.UNANSWERED_DETAIL || {};
     const unansweredId = config.id;
@@ -12,6 +16,11 @@
     const btnGenerate = document.getElementById("btn-generate-draft");
     const btnIgnore = document.getElementById("btn-ignore");
 
+    /**
+     * 展示操作结果提示。
+     * @param {string} text
+     * @param {string} type Bootstrap alert 类型
+     */
     function showMessage(text, type) {
         if (!messageEl) return;
         messageEl.textContent = text;
@@ -19,6 +28,10 @@
         messageEl.classList.remove("d-none");
     }
 
+    /**
+     * 将 generate-draft 返回的数据填入转换表单。
+     * @param {Object} data 草稿预览字段
+     */
     function fillDraftForm(data) {
         const setValue = (id, value) => {
             const el = document.getElementById(id);
@@ -37,6 +50,10 @@
         setValue("draft-risk", data.risk_notice);
     }
 
+    /**
+     * 从表单收集 convert 接口所需 payload。
+     * @returns {Object}
+     */
     function collectPayload() {
         const answer = (document.getElementById("draft-answer")?.value || "").trim();
         if (!answer) {
@@ -57,6 +74,12 @@
         };
     }
 
+    /**
+     * 发起 JSON 请求并校验 success 字段。
+     * @param {string} url
+     * @param {RequestInit} options
+     * @returns {Promise<Object>}
+     */
     async function requestJson(url, options) {
         const resp = await fetch(url, options);
         const data = await resp.json();

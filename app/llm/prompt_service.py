@@ -16,13 +16,17 @@ from app.prompts.quality_check_prompt import QUALITY_CHECK_PROMPT_TEMPLATE
 
 @dataclass
 class QualityCheckResult:
-    passed: bool
-    risk_points: list[str]
-    suggestion: str
-    raw_content: str
+    """LLM 答案质检解析结果。"""
+
+    passed: bool  # 是否通过质检
+    risk_points: list[str]  # 风险点列表
+    suggestion: str  # 改进建议
+    raw_content: str  # LLM 原始返回文本
 
 
 class PromptService:
+    """提示词渲染与 LLM 调用编排（回答、质检、知识草稿）。"""
+
     def render_answer_prompt(self, *, question: str, context: str) -> str:
         return (
             ANSWER_PROMPT_TEMPLATE.replace("{{question}}", question.strip())

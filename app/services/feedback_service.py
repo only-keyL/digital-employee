@@ -13,6 +13,8 @@ class FeedbackServiceError(Exception):
 
 
 class FeedbackService:
+    """用户问答反馈（点赞/点踩等）提交与查询。"""
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self.repo = FeedbackRepository(session)

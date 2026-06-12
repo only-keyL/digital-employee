@@ -13,25 +13,30 @@ from app.services.retrieval_service import RetrievalHit
 
 @dataclass
 class GeneratedAnswer:
-    answer: str
-    provider: str
-    llm_tokens: int
-    answer_time_ms: int
-    need_human: bool
-    risk_level: str
-    fallback_reason: str | None
-    error_stage: str | None
-    error_message: str | None
-    degraded: bool
+    """AnswerGenerationService.generate 的返回结构。"""
+
+    answer: str  # 最终回答正文
+    provider: str  # LLM 提供方
+    llm_tokens: int  # token 数
+    answer_time_ms: int  # 生成耗时（毫秒）
+    need_human: bool  # 是否建议人工
+    risk_level: str  # 风险等级
+    fallback_reason: str | None  # 降级原因
+    error_stage: str | None  # 出错阶段
+    error_message: str | None  # 出错信息
+    degraded: bool  # 是否经过降级路径
 
 
 class AnswerGenerationService:
-    SOURCE_MARKER = "答案来源"
+    """命中后基于检索结果调用 LLM 生成答案。"""
+
+    SOURCE_MARKER = "答案来源"  # 回答中必须包含的来源标记
 
     def __init__(self, prompt_service: PromptService | None = None) -> None:
         self.prompt_service = prompt_service or PromptService()
 
     def generate(self, *, question: str, hits: list[RetrievalHit]) -> GeneratedAnswer:
+        """根据检索 hits 拼 context 并调用 PromptService 生成答案。"""
         if not hits:
             raise ValueError("命中回答生成需要至少一条检索结果")
 
@@ -117,6 +122,7 @@ class AnswerGenerationService:
             )
 
     def build_context(self, hits: list[RetrievalHit]) -> str:
+        """将知识卡片字段拼成 LLM 上下文文本。"""
         blocks: list[str] = []
         for hit in hits[:3]:
             card = hit.card

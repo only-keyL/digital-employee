@@ -1,4 +1,4 @@
-"""Ask service: LangGraph orchestration entry for /api/ask."""
+"""问答服务：/api/ask 入口，负责 state 构建与响应映射。"""
 
 from __future__ import annotations
 
@@ -12,15 +12,19 @@ from app.schemas.ask_schema import AskRequest, AskResponse, AskSourceItem
 
 
 class AskService:
+    """问答业务入口，调用 LangGraph 完成检索、生成与落库。"""
+
     def __init__(self, session: Session) -> None:
-        self.session = session
+        self.session = session  # 当前请求的数据库 Session
 
     def ask(self, payload: AskRequest) -> AskResponse:
+        """执行一次完整问答流程。"""
         initial_state = self._build_initial_state(payload)
         final_state = AskGraphRunner(self.session).run(initial_state)
         return self._map_state_to_response(final_state)
 
     def _build_initial_state(self, payload: AskRequest) -> AskState:
+        """将 HTTP 请求体转换为 LangGraph 初始 AskState。"""
         return {
             "question_raw": payload.question or "",
             "user_id": payload.user_id or "anonymous",
@@ -49,6 +53,7 @@ class AskService:
         }
 
     def _map_state_to_response(self, state: AskState) -> AskResponse:
+        """将 LangGraph 最终 state 映射为 /api/ask 响应结构。"""
         sources = [
             AskSourceItem(
                 card_id=int(item.get("card_id") or 0),

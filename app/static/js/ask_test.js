@@ -1,3 +1,7 @@
+/**
+ * 问答测试页脚本。
+ * 调用 /api/ask 展示命中结果，并支持提交 useful/useless/need_human 反馈。
+ */
 document.addEventListener("DOMContentLoaded", () => {
   const askForm = document.getElementById("ask-form");
   if (!askForm) {
@@ -11,14 +15,20 @@ document.addEventListener("DOMContentLoaded", () => {
   const feedbackMessage = document.getElementById("feedback-message");
   const feedbackButtons = Array.from(document.querySelectorAll("[data-feedback-type]"));
 
+  /** @type {number|null} 最近一次问答的 question_log_id */
   let lastQuestionLogId = null;
 
+  /**
+   * 启用或禁用反馈按钮。
+   * @param {boolean} enabled
+   */
   function setFeedbackEnabled(enabled) {
     feedbackButtons.forEach((button) => {
       button.disabled = !enabled;
     });
   }
 
+  /** 重置反馈面板状态（无 log_id 时禁用提交）。 */
   function resetFeedbackState() {
     lastQuestionLogId = null;
     setFeedbackEnabled(false);
@@ -29,6 +39,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  /**
+   * 在反馈区域展示提示消息。
+   * @param {string} text
+   * @param {string} type Bootstrap alert 类型，如 success、danger
+   */
   function showFeedbackMessage(text, type) {
     if (!feedbackMessage) return;
     feedbackMessage.textContent = text;
@@ -36,6 +51,10 @@ document.addEventListener("DOMContentLoaded", () => {
     feedbackMessage.classList.remove("d-none");
   }
 
+  /**
+   * 向 /api/feedback 提交用户反馈。
+   * @param {string} feedbackType useful | useless | need_human
+   */
   async function submitFeedback(feedbackType) {
     if (!lastQuestionLogId) {
       showFeedbackMessage("当前回答没有 question_log_id，无法提交反馈。", "warning");

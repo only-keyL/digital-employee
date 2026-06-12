@@ -1,4 +1,7 @@
-"""WeCom mock callback acceptance script for Phase 11."""
+"""企业微信 Mock 回调验收脚本（阶段十一）。
+
+通过 HTTP 调用 /api/wecom/mock/callback，验证命中、去重、未命中沉淀与空问题等场景。
+"""
 
 from __future__ import annotations
 
@@ -18,8 +21,11 @@ from app.db.database import SessionLocal
 from app.models.question_log import QuestionLog
 from app.repositories.unanswered_repository import UnansweredRepository
 
+# 预期命中知识库的标准问题
 HIT_QUESTION = "客户现场登录失败，提示账号无权限，应该怎么处理？"
+# 用于去重测试的重复问题（与 HIT 相同）
 DEDUP_QUESTION = HIT_QUESTION
+# 预期未命中、应写入 unanswered 的问题
 MISS_QUESTION = "客户打印模板套打偏移怎么处理？"
 HIT_MSG_ID = "mock-wecom-hit-001"
 DEDUP_MSG_ID = "mock-wecom-dedup-001"
@@ -28,6 +34,7 @@ EMPTY_MSG_ID = "mock-wecom-empty-001"
 
 
 def _api_base_url() -> str:
+    """根据配置拼出本地 API 基址。"""
     host = settings.app_host
     if host in {"0.0.0.0", "::"}:
         host = "127.0.0.1"
@@ -35,6 +42,7 @@ def _api_base_url() -> str:
 
 
 def _parse_xml_content(xml_text: str) -> str:
+    """从企业微信 XML 回复中提取 Content 文本。"""
     root = ET.fromstring(xml_text)
     content_el = root.find("Content")
     if content_el is None or content_el.text is None:
@@ -43,6 +51,7 @@ def _parse_xml_content(xml_text: str) -> str:
 
 
 def _count_wecom_logs_for_question(question: str) -> int:
+    """统计指定问题在 question_log 中 source_type=wecom 的记录数。"""
     with SessionLocal() as session:
         stmt = (
             select(func.count())
@@ -56,6 +65,7 @@ def _count_wecom_logs_for_question(question: str) -> int:
 
 
 def _count_empty_wecom_logs() -> int:
+    """统计 source_type=wecom 且 question_raw 为空的日志条数。"""
     with SessionLocal() as session:
         stmt = (
             select(func.count())
@@ -74,6 +84,7 @@ def _mock_payload(
     content: str,
     msg_type: str = "text",
 ) -> dict:
+    """构造 Mock 企业微信回调 JSON 请求体。"""
     return {
         "msg_id": msg_id,
         "from_user": "wecom_user_demo",
@@ -86,6 +97,7 @@ def _mock_payload(
 
 
 def main() -> int:
+    """执行企业微信 Mock 回调全链路验收，返回进程退出码。"""
     base_url = _api_base_url()
     print(f"Checking WeCom mock callback against: {base_url}")
 

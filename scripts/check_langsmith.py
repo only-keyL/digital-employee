@@ -1,4 +1,7 @@
-"""LangSmith observability acceptance script for Phase 10."""
+"""LangSmith 可观测性验收脚本（阶段十）。
+
+验证 tracing 关闭/开启时 question_log.langsmith_trace_id 的写入行为。
+"""
 
 from __future__ import annotations
 
@@ -15,10 +18,12 @@ from app.config.settings import settings
 from app.db.database import SessionLocal
 from app.repositories.question_repository import QuestionRepository
 
+# 用于触发问答并检查 trace_id 的测试问题
 QUESTION = "阶段十测试：客户凭证过期后无法登录怎么办？"
 
 
 def _api_base_url() -> str:
+    """根据配置拼出本地 API 基址。"""
     host = settings.app_host
     if host in {"0.0.0.0", "::"}:
         host = "127.0.0.1"
@@ -26,6 +31,7 @@ def _api_base_url() -> str:
 
 
 def _get_trace_id_from_db(question_log_id: int) -> str | None:
+    """从数据库读取指定 question_log 的 langsmith_trace_id。"""
     with SessionLocal() as session:
         repo = QuestionRepository(session)
         log = repo.get_log_by_id(question_log_id)
@@ -35,6 +41,7 @@ def _get_trace_id_from_db(question_log_id: int) -> str | None:
 
 
 def _run_disabled_mode(client: httpx.Client, base_url: str) -> int:
+    """验证 LangSmith 关闭时 trace_id 应为空。"""
     if settings.is_langsmith_enabled:
         print(
             "[SKIP] Disabled mode checks skipped because LANGSMITH_TRACING=true "
@@ -69,6 +76,7 @@ def _run_disabled_mode(client: httpx.Client, base_url: str) -> int:
 
 
 def _run_enabled_mode(client: httpx.Client, base_url: str) -> int:
+    """验证 LangSmith 开启时 trace_id 应非空。"""
     if not settings.is_langsmith_enabled:
         print("[SKIP] Enabled mode checks skipped (LANGSMITH_TRACING=false or LANGSMITH_API_KEY empty).")
         return 0
@@ -94,6 +102,7 @@ def _run_enabled_mode(client: httpx.Client, base_url: str) -> int:
 
 
 def main() -> int:
+    """执行 LangSmith 可观测性验收，返回进程退出码。"""
     base_url = _api_base_url()
     print(f"Checking LangSmith observability against: {base_url}")
     print(

@@ -1,1 +1,1 @@
-"""HTTP routers for pages and APIs."""
+"""HTTP 路由汇总（页面与 REST API）。"""

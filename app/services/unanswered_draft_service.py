@@ -14,6 +14,8 @@ from app.schemas.unanswered_schema import UnansweredDraftPreview
 
 
 class UnansweredDraftService:
+    """未命中问题 AI/Mock 知识卡片草稿预览生成。"""
+
     def __init__(self, prompt_service: PromptService | None = None) -> None:
         self.prompt_service = prompt_service or PromptService()
 

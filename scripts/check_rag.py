@@ -1,4 +1,7 @@
-"""RAG acceptance script for Phase 5."""
+"""RAG 向量检索验收脚本（阶段五）。
+
+检查 Embedding、Qdrant 集合、TopK 检索及相似度阈值。
+"""
 
 from __future__ import annotations
 
@@ -15,11 +18,14 @@ from app.rag.embedding_service import get_embedding_service
 from app.rag.qdrant_store import get_qdrant_store
 from app.repositories.knowledge_repository import KnowledgeRepository
 
+# 用于向量检索的查询文本
 QUERY_TEXT = "登录失败账号无权限"
+# TopK 结果中应包含的目标卡片标题关键词
 TARGET_TITLE_KEYWORD = "登录失败提示账号无权限处理办法"
 
 
 def main() -> int:
+    """执行 RAG 向量检索验收，返回进程退出码。"""
     if settings.embedding_provider.lower() != "fastembed":
         print(
             f"[WARN] check_rag.py expects EMBEDDING_PROVIDER=fastembed, "

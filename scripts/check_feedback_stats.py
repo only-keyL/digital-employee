@@ -1,4 +1,7 @@
-"""Feedback and statistics acceptance script for Phase 9."""
+"""反馈与统计看板验收脚本（阶段九）。
+
+验证 /api/feedback 提交、重复反馈拦截及 /api/statistics/dashboard 指标。
+"""
 
 from __future__ import annotations
 
@@ -13,12 +16,14 @@ if str(ROOT) not in sys.path:
 
 from app.config.settings import settings
 
+# 分别用于 useful / useless / need_human 三类反馈的测试问题
 QUESTION_USEFUL = "阶段九测试：客户凭证过期后无法登录怎么办？"
 QUESTION_USELESS = "阶段九测试：客户报表导出超时应该怎么处理？"
 QUESTION_NEED_HUMAN = "阶段九测试：客户审批流卡住后如何手工放行？"
 
 
 def _api_base_url() -> str:
+    """根据配置拼出本地 API 基址。"""
     host = settings.app_host
     if host in {"0.0.0.0", "::"}:
         host = "127.0.0.1"
@@ -26,6 +31,7 @@ def _api_base_url() -> str:
 
 
 def _ask(client: httpx.Client, base_url: str, question: str) -> int:
+    """调用 /api/ask 并返回 question_log_id。"""
     resp = client.post(f"{base_url}/api/ask", json={"question": question, "source_type": "web"})
     resp.raise_for_status()
     data = resp.json()
@@ -42,6 +48,7 @@ def _submit_feedback(
     question_log_id: int,
     feedback_type: str,
 ) -> dict:
+    """提交单条用户反馈并返回 API 响应。"""
     resp = client.post(
         f"{base_url}/api/feedback",
         json={
@@ -55,6 +62,7 @@ def _submit_feedback(
 
 
 def main() -> int:
+    """执行反馈与统计验收，返回进程退出码。"""
     base_url = _api_base_url()
     print(f"Checking feedback and statistics against: {base_url}")
 

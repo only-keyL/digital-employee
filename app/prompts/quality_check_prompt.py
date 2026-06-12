@@ -1,3 +1,5 @@
+"""答案质检 Prompt 模板（质量检查节点使用）。"""
+
 QUALITY_CHECK_PROMPT_TEMPLATE = """你是企业 AI 答案质检助手。
 请检查下面的回答是否合格。
 

@@ -25,13 +25,17 @@ class QdrantDimensionMismatchError(QdrantStoreError):
 
 @dataclass
 class QdrantSearchHit:
-    card_id: int
-    title: str
-    score: float
-    payload: dict[str, Any]
+    """单条向量检索命中结果。"""
+
+    card_id: int  # 知识卡片 ID
+    title: str  # 卡片标题
+    score: float  # 相似度得分
+    payload: dict[str, Any]  # Qdrant 存储的完整 payload
 
 
 class QdrantStore:
+    """本地 Qdrant 知识卡片向量存储与检索。"""
+
     def __init__(
         self,
         *,
@@ -72,6 +76,7 @@ class QdrantStore:
         return None
 
     def init_collection(self, *, recreate: bool = False) -> None:
+        """初始化或校验 collection，维度不匹配时抛出异常。"""
         vector_size = self._embedding.get_dimension()
         exists = self._client.collection_exists(self._collection)
 
@@ -95,6 +100,7 @@ class QdrantStore:
         )
 
     def build_payload(self, card: KnowledgeCard) -> dict[str, Any]:
+        """将知识卡片转为 Qdrant point payload。"""
         return {
             "card_id": card.id,
             "title": card.title,
@@ -109,6 +115,7 @@ class QdrantStore:
         }
 
     def upsert_knowledge_card(self, card: KnowledgeCard) -> None:
+        """嵌入卡片内容并写入/更新向量点。"""
         self.init_collection()
         content = build_knowledge_content_text(card_to_content_dict(card))
         vector = self._embedding.embed_text(content)
@@ -120,6 +127,7 @@ class QdrantStore:
         self._client.upsert(collection_name=self._collection, points=[point])
 
     def delete_knowledge_card(self, card_id: int) -> None:
+        """按 card_id 删除对应向量点。"""
         if not self._client.collection_exists(self._collection):
             return
         self._client.delete(
@@ -128,6 +136,7 @@ class QdrantStore:
         )
 
     def search(self, query_text: str, *, top_k: int | None = None) -> list[QdrantSearchHit]:
+        """对查询文本做向量检索，返回 top_k 命中列表。"""
         if not self._client.collection_exists(self._collection):
             return []
 
@@ -154,6 +163,7 @@ class QdrantStore:
         return hits
 
     def rebuild_from_mysql(self, cards: list[KnowledgeCard]) -> tuple[int, int]:
+        """批量从 MySQL 卡片重建向量索引，返回 (成功数, 失败数)。"""
         self.init_collection(recreate=False)
         success = 0
         failed = 0
@@ -181,4 +191,5 @@ class QdrantStore:
 
 @lru_cache
 def get_qdrant_store() -> QdrantStore:
+    """获取全局单例 QdrantStore。"""
     return QdrantStore()

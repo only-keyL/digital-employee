@@ -1,3 +1,5 @@
+"""知识卡片 ORM 模型（表 knowledge_card）。"""
+
 from datetime import datetime
 
 from sqlalchemy import BigInteger, DateTime, Index, Integer, SmallInteger, String, Text, func
@@ -7,6 +9,8 @@ from app.db.database import Base
 
 
 class KnowledgeCard(Base):
+    """知识库主数据：问答内容、审核与向量同步状态。"""
+
     __tablename__ = "knowledge_card"
     __table_args__ = (
         Index("idx_knowledge_audit_enabled", "audit_status", "enabled"),
@@ -15,33 +19,33 @@ class KnowledgeCard(Base):
         Index("idx_knowledge_system_module", "system_name", "module_name"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
-    title: Mapped[str] = mapped_column(String(200), nullable=False, default="")
-    question: Mapped[str | None] = mapped_column(Text)
-    answer: Mapped[str | None] = mapped_column(Text)
-    system_name: Mapped[str | None] = mapped_column(String(100))
-    module_name: Mapped[str | None] = mapped_column(String(100))
-    tags: Mapped[str | None] = mapped_column(String(500))
-    scene: Mapped[str | None] = mapped_column(String(500))
-    reason_analysis: Mapped[str | None] = mapped_column(Text)
-    troubleshooting_steps: Mapped[str | None] = mapped_column(Text)
-    solution: Mapped[str | None] = mapped_column(Text)
-    risk_notice: Mapped[str | None] = mapped_column(Text)
-    source_group: Mapped[str | None] = mapped_column(String(100))
-    source_user: Mapped[str | None] = mapped_column(String(100))
-    audit_status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")
-    audit_user: Mapped[str | None] = mapped_column(String(100))
-    audit_time: Mapped[datetime | None] = mapped_column(DateTime)
-    audit_remark: Mapped[str | None] = mapped_column(String(500))
-    vector_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
-    vector_id: Mapped[str | None] = mapped_column(String(100))
-    vector_error: Mapped[str | None] = mapped_column(Text)
-    content_hash: Mapped[str | None] = mapped_column(String(64))
-    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
-    enabled: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)
-    deleted: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
-    create_user: Mapped[str | None] = mapped_column(String(100))
-    update_user: Mapped[str | None] = mapped_column(String(100))
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)  # 主键
+    title: Mapped[str] = mapped_column(String(200), nullable=False, default="")  # 标题
+    question: Mapped[str | None] = mapped_column(Text)  # 标准问题
+    answer: Mapped[str | None] = mapped_column(Text)  # 标准答案
+    system_name: Mapped[str | None] = mapped_column(String(100))  # 所属系统
+    module_name: Mapped[str | None] = mapped_column(String(100))  # 所属模块
+    tags: Mapped[str | None] = mapped_column(String(500))  # 标签
+    scene: Mapped[str | None] = mapped_column(String(500))  # 场景描述
+    reason_analysis: Mapped[str | None] = mapped_column(Text)  # 原因分析
+    troubleshooting_steps: Mapped[str | None] = mapped_column(Text)  # 排查步骤
+    solution: Mapped[str | None] = mapped_column(Text)  # 解决方案
+    risk_notice: Mapped[str | None] = mapped_column(Text)  # 风险提醒
+    source_group: Mapped[str | None] = mapped_column(String(100))  # 来源群
+    source_user: Mapped[str | None] = mapped_column(String(100))  # 来源用户
+    audit_status: Mapped[str] = mapped_column(String(20), nullable=False, default="draft")  # 审核状态
+    audit_user: Mapped[str | None] = mapped_column(String(100))  # 审核人
+    audit_time: Mapped[datetime | None] = mapped_column(DateTime)  # 审核时间
+    audit_remark: Mapped[str | None] = mapped_column(String(500))  # 审核备注
+    vector_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")  # 向量状态
+    vector_id: Mapped[str | None] = mapped_column(String(100))  # Qdrant point ID
+    vector_error: Mapped[str | None] = mapped_column(Text)  # 向量同步错误
+    content_hash: Mapped[str | None] = mapped_column(String(64))  # 内容哈希
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # 版本号
+    enabled: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)  # 是否启用
+    deleted: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)  # 逻辑删除
+    create_user: Mapped[str | None] = mapped_column(String(100))  # 创建人
+    update_user: Mapped[str | None] = mapped_column(String(100))  # 更新人
     create_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(
         DateTime,

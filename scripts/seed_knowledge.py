@@ -1,4 +1,7 @@
-"""Idempotent seed script for demo knowledge cards."""
+"""演示知识卡片种子导入脚本（幂等）。
+
+按 SEED_KNOWLEDGE_CARDS 定义写入 MySQL，已存在则跳过。
+"""
 
 from __future__ import annotations
 
@@ -15,6 +18,7 @@ from app.services.seed_data import SEED_KNOWLEDGE_CARDS
 
 
 def main() -> int:
+    """导入演示知识卡片种子数据，返回进程退出码。"""
     inserted = 0
     skipped = 0
     with SessionLocal() as session:

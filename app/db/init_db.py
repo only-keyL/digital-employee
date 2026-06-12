@@ -1,4 +1,4 @@
-"""Initialize database tables and default system_config values."""
+"""初始化数据库表结构与 system_config 默认值。"""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from app.repositories.system_config_repository import SystemConfigRepository
 
 
 def init_database() -> None:
+    """创建全部 ORM 表并 upsert system_config 默认配置。"""
     print(f"Connecting to: {settings.mysql_host}:{settings.mysql_port}/{settings.mysql_database}")
     Base.metadata.create_all(bind=engine)
     print("Tables created (or already exist).")

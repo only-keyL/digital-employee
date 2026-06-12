@@ -1,4 +1,4 @@
-"""Vector retrieval orchestration for /api/ask."""
+"""向量检索编排（/api/ask 的 RAG 检索层）。"""
 
 from __future__ import annotations
 
@@ -15,23 +15,29 @@ from app.repositories.knowledge_repository import KnowledgeRepository
 
 @dataclass
 class RetrievalHit:
-    card: KnowledgeCard
-    title: str
-    score: float
+    """单条检索命中结果（含 MySQL 卡片实体）。"""
+
+    card: KnowledgeCard  # 知识卡片 ORM
+    title: str  # 卡片标题
+    score: float  # 相似度分数
 
 
 @dataclass
 class RetrievalResult:
-    matched: bool
-    similarity_score: float
-    best_hit: RetrievalHit | None = None
-    hits: list[RetrievalHit] = field(default_factory=list)
-    fallback_reason: str | None = None
-    error: str | None = None
+    """RetrievalService.retrieve 的返回结构。"""
+
+    matched: bool  # 是否达到阈值命中
+    similarity_score: float  # 最高相似度
+    best_hit: RetrievalHit | None = None  # 最佳命中
+    hits: list[RetrievalHit] = field(default_factory=list)  # 有效 hit 列表
+    fallback_reason: str | None = None  # 未命中原因
+    error: str | None = None  # 检索异常信息
 
 
 class RetrievalService:
-    MAX_SOURCES = 3
+    """协调 Qdrant 检索与 MySQL 卡片校验。"""
+
+    MAX_SOURCES = 3  # 最多返回来源条数
 
     def __init__(
         self,
@@ -44,10 +50,11 @@ class RetrievalService:
         self.repo = KnowledgeRepository(session)
         self.embedding = embedding_service or get_embedding_service()
         self.qdrant = qdrant_store or get_qdrant_store()
-        self.threshold = settings.similarity_threshold
-        self.top_k = settings.top_k
+        self.threshold = settings.similarity_threshold  # 命中阈值，默认 0.75
+        self.top_k = settings.top_k  # Qdrant top_k，默认 5
 
     def retrieve(self, question: str) -> RetrievalResult:
+        """对问题做向量检索，并按阈值判定是否命中。"""
         try:
             raw_hits = self.qdrant.search(question, top_k=self.top_k)
         except Exception as exc:
@@ -92,6 +99,7 @@ class RetrievalService:
         )
 
     def _validate_hits(self, raw_hits: list[QdrantSearchHit]) -> list[RetrievalHit]:
+        """回查 MySQL，过滤 deleted / 未 approved / 未 enabled 的卡片。"""
         valid: list[RetrievalHit] = []
         for raw in raw_hits:
             card = self.repo.get_searchable_by_id(raw.card_id)

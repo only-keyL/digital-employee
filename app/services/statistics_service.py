@@ -4,6 +4,8 @@ from app.repositories.statistics_repository import StatisticsRepository
 
 
 class StatisticsService:
+    """运营统计看板数据聚合服务。"""
+
     def __init__(self, session: Session) -> None:
         self.repo = StatisticsRepository(session)
 

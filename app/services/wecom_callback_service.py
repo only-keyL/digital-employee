@@ -38,6 +38,8 @@ def _get_dedup_store(settings: Settings) -> WecomDedupStore:
 
 
 class WecomCallbackService:
+    """企业微信回调编排：验签、解密、去重，复用 AskService 生成回复。"""
+
     def __init__(self, session: Session, settings: Settings | None = None) -> None:
         self.session = session
         self.settings = settings or get_settings()
@@ -51,6 +53,7 @@ class WecomCallbackService:
         nonce: str | None,
         echostr: str | None,
     ) -> str:
+        """处理 GET 回调 URL 验证，返回解密后的 echostr 明文。"""
         if not echostr:
             raise HTTPException(status_code=400, detail="missing echostr")
 
@@ -84,6 +87,7 @@ class WecomCallbackService:
         return echostr
 
     def handle_mock_callback(self, payload: WecomMockCallbackRequest) -> str:
+        """处理本地 Mock JSON 回调，返回被动回复 XML。"""
         if not self.settings.wecom_mock_enabled:
             raise HTTPException(status_code=503, detail="wecom mock disabled")
 
@@ -98,6 +102,7 @@ class WecomCallbackService:
         timestamp: str | None = None,
         nonce: str | None = None,
     ) -> str:
+        """处理真实企业微信 POST XML 回调，验签解密后生成回复。"""
         if not self.settings.wecom_enabled:
             raise HTTPException(status_code=503, detail="wecom disabled")
 

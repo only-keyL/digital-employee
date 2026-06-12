@@ -17,6 +17,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def create_app() -> FastAPI:
+    """创建 FastAPI 应用实例，挂载静态资源与各业务路由。"""
     app = FastAPI(
         title=settings.app_name,
         debug=settings.app_debug,

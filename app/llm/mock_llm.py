@@ -12,6 +12,8 @@ QUALITY_PASS_JSON = '{"pass": true, "risk_points": [], "suggestion": ""}'
 
 
 class MockLLM(BaseLLMClient):
+    """本地 Mock LLM：根据提示词模板生成演示用回答/质检/草稿 JSON。"""
+
     def __init__(self) -> None:
         self._model = "mock-llm"
 

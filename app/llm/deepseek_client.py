@@ -10,6 +10,8 @@ from app.llm.base import BaseLLMClient, LLMClientError, LLMResponse
 
 
 class DeepSeekClient(BaseLLMClient):
+    """DeepSeek OpenAI 兼容聊天客户端（基于 langchain-openai）。"""
+
     def __init__(self) -> None:
         if not settings.deepseek_api_key:
             raise LLMClientError("DEEPSEEK_API_KEY 未配置")

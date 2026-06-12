@@ -1,4 +1,7 @@
-"""LangGraph ask workflow acceptance script for Phase 7."""
+"""LangGraph 问答工作流验收脚本（阶段七）。
+
+验证 /api/ask 在命中、未命中、空问题三种场景下的图编排行为。
+"""
 
 from __future__ import annotations
 
@@ -13,12 +16,16 @@ if str(ROOT) not in sys.path:
 
 from app.config.settings import settings
 
+# 预期命中知识库的问题
 HIT_QUESTION = "客户现场登录失败，提示账号无权限，应该怎么处理？"
+# 预期未命中的问题
 MISS_QUESTION = "客户打印模板套打偏移怎么处理？"
+# 空白问题，用于校验空输入拦截
 EMPTY_QUESTION = "   "
 
 
 def _api_base_url() -> str:
+    """根据配置拼出本地 API 基址。"""
     host = settings.app_host
     if host in {"0.0.0.0", "::"}:
         host = "127.0.0.1"
@@ -26,6 +33,7 @@ def _api_base_url() -> str:
 
 
 def main() -> int:
+    """执行 LangGraph 问答工作流验收，返回进程退出码。"""
     base_url = _api_base_url()
     health_url = f"{base_url}/api/health"
     ask_url = f"{base_url}/api/ask"

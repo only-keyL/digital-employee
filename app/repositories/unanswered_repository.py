@@ -1,3 +1,5 @@
+"""未命中问题数据访问层。"""
+
 from datetime import datetime
 
 from sqlalchemy import select
@@ -8,6 +10,8 @@ from app.repositories.base_repository import BaseRepository
 
 
 class UnansweredRepository(BaseRepository[UnansweredQuestion]):
+    """unanswered_question 表查询与状态更新。"""
+
     def __init__(self, session: Session) -> None:
         super().__init__(session, UnansweredQuestion)
 
@@ -68,6 +72,7 @@ class UnansweredRepository(BaseRepository[UnansweredQuestion]):
         return record
 
     def increment_frequency(self, record: UnansweredQuestion, *, question_log_id: int) -> UnansweredQuestion:
+        """同一归一化问题再次未命中时累加频次。"""
         record.frequency += 1
         record.last_seen_time = datetime.now()
         record.question_log_id = question_log_id
@@ -75,12 +80,14 @@ class UnansweredRepository(BaseRepository[UnansweredQuestion]):
         return record
 
     def mark_converted(self, record: UnansweredQuestion, *, convert_card_id: int) -> UnansweredQuestion:
+        """标记为已转化为知识卡片。"""
         record.status = "converted"
         record.convert_card_id = convert_card_id
         self.session.flush()
         return record
 
     def mark_ignored(self, record: UnansweredQuestion) -> UnansweredQuestion:
+        """标记为已忽略。"""
         record.status = "ignored"
         self.session.flush()
         return record

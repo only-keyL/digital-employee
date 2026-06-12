@@ -1,3 +1,5 @@
+"""用户反馈 REST API 路由（/api/feedback）。"""
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -13,6 +15,7 @@ router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
 @router.post("")
 def submit_feedback(payload: FeedbackCreateRequest, db: Session = Depends(get_db)):
+    """提交问答反馈（有用/无用/需人工）。"""
     try:
         data = FeedbackService(db).submit_feedback(payload)
         return success_response(data, "反馈提交成功")
@@ -31,6 +34,7 @@ def list_feedback(
     feedback_type: str | None = Query(None),
     db: Session = Depends(get_db),
 ):
+    """分页查询反馈列表，可按反馈类型筛选。"""
     try:
         if feedback_type is not None and feedback_type.strip() == "":
             feedback_type = None

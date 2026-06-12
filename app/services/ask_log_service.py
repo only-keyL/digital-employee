@@ -1,4 +1,4 @@
-"""Question log and unanswered question persistence for /api/ask."""
+"""提问日志与未命中问题持久化（/api/ask 落库）。"""
 
 from __future__ import annotations
 
@@ -16,12 +16,15 @@ from app.repositories.unanswered_repository import UnansweredRepository
 
 
 class AskLogService:
+    """负责 question_log 写入与未命中问题 upsert。"""
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self.question_repo = QuestionRepository(session)
         self.unanswered_repo = UnansweredRepository(session)
 
     def write_log(self, state: AskState) -> int | None:
+        """按 state 写入 question_log；未命中时 upsert unanswered_question。"""
         if not state.get("should_write_log", False):
             return None
 
@@ -40,6 +43,7 @@ class AskLogService:
         return question_log_id
 
     def create_question_log(self, state: AskState, *, latency_ms: int) -> QuestionLog:
+        """构造并 flush 一条 QuestionLog 记录。"""
         matched = state.get("matched", False)
         log = QuestionLog(
             request_id=uuid.uuid4().hex,
@@ -68,6 +72,7 @@ class AskLogService:
         return self.question_repo.create_log(log)
 
     def upsert_unanswered_question(self, state: AskState, *, question_log_id: int) -> None:
+        """未命中且非检索异常：新建或递增 unanswered_question.frequency。"""
         question_masked = state.get("question_masked") or ""
         normalized_question = question_masked.strip()[:500]
         summary = question_masked[:100]

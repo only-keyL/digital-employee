@@ -1,4 +1,4 @@
-"""LangSmith tracing for /api/ask graph invocation (Phase 10)."""
+"""LangSmith 问答图追踪（阶段十）。"""
 
 from __future__ import annotations
 
@@ -25,16 +25,21 @@ _LANGCHAIN_ENV_KEYS = (
 
 
 class TraceService:
+    """LangSmith 追踪服务：包装问答图调用并回写 trace_id。"""
+
     def __init__(self, settings: Settings | None = None) -> None:
         self._settings = settings or get_settings()
 
     def is_enabled(self) -> bool:
+        """是否已启用 LangSmith 追踪。"""
         return self._settings.is_langsmith_enabled
 
     def build_safe_metadata(self, state: AskState) -> dict[str, Any]:
+        """从 AskState 构建可上报的安全元数据（无 PII）。"""
         return build_safe_metadata(state)
 
     def invoke_graph(self, graph: Any, state: AskState, session: Session) -> AskState:
+        """执行问答图；启用追踪时附加 tracer 并持久化 trace_id。"""
         config = {"configurable": {"db": session}}
         if not self.is_enabled():
             return graph.invoke(state, config)
@@ -108,6 +113,7 @@ class TraceService:
                     os.environ[key] = value
 
     def extract_trace_id(self, tracer: Any) -> str | None:
+        """从 LangChainTracer 中提取本次运行的 trace_id。"""
         try:
             run_map = getattr(tracer, "run_map", None) or {}
             for run in run_map.values():
@@ -125,6 +131,7 @@ class TraceService:
         return None
 
     def persist_trace_id(self, session: Session, question_log_id: int, trace_id: str) -> None:
+        """将 LangSmith trace_id 写入 question_log 记录。"""
         try:
             QuestionRepository(session).update_langsmith_trace_id(question_log_id, trace_id)
             session.commit()

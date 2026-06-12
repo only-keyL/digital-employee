@@ -1,3 +1,5 @@
+"""知识卡片 REST API 路由（/api/knowledge-cards）。"""
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,6 +19,7 @@ def list_knowledge_cards(
     page_size: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
+    """分页查询知识卡片列表。"""
     try:
         data = KnowledgeService(db).list_api(page=page, page_size=page_size)
         return success_response(data)
@@ -26,6 +29,7 @@ def list_knowledge_cards(
 
 @router.get("/{card_id}")
 def get_knowledge_card(card_id: int, db: Session = Depends(get_db)):
+    """按 ID 获取知识卡片详情。"""
     try:
         data = KnowledgeService(db).get_detail(card_id)
         return success_response(data)
@@ -37,6 +41,7 @@ def get_knowledge_card(card_id: int, db: Session = Depends(get_db)):
 
 @router.post("")
 def create_knowledge_card(payload: KnowledgeCreate, db: Session = Depends(get_db)):
+    """创建知识卡片（draft 状态）。"""
     try:
         data = KnowledgeService(db).create(payload)
         return success_response(data, "创建成功")
@@ -48,6 +53,7 @@ def create_knowledge_card(payload: KnowledgeCreate, db: Session = Depends(get_db
 
 @router.put("/{card_id}")
 def update_knowledge_card(card_id: int, payload: KnowledgeUpdate, db: Session = Depends(get_db)):
+    """更新知识卡片内容。"""
     try:
         data = KnowledgeService(db).update(card_id, payload)
         return success_response(data, "更新成功")
@@ -59,6 +65,7 @@ def update_knowledge_card(card_id: int, payload: KnowledgeUpdate, db: Session = 
 
 @router.post("/{card_id}/audit")
 def audit_knowledge_card(card_id: int, payload: KnowledgeAuditRequest, db: Session = Depends(get_db)):
+    """审核知识卡片（通过/拒绝）。"""
     try:
         data = KnowledgeService(db).audit(card_id, payload)
         return success_response(data, "审核完成")
@@ -72,6 +79,7 @@ def audit_knowledge_card(card_id: int, payload: KnowledgeAuditRequest, db: Sessi
 
 @router.post("/{card_id}/sync-vector")
 def sync_knowledge_card_vector(card_id: int, db: Session = Depends(get_db)):
+    """将已审核卡片同步到 Qdrant 向量库。"""
     try:
         data = KnowledgeService(db).sync_vector(card_id)
         return success_response(data, "向量同步完成")
@@ -83,6 +91,7 @@ def sync_knowledge_card_vector(card_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{card_id}/enable")
 def enable_knowledge_card(card_id: int, db: Session = Depends(get_db)):
+    """启用知识卡片（参与检索）。"""
     try:
         data = KnowledgeService(db).enable(card_id)
         return success_response(data, "已启用")
@@ -94,6 +103,7 @@ def enable_knowledge_card(card_id: int, db: Session = Depends(get_db)):
 
 @router.post("/{card_id}/disable")
 def disable_knowledge_card(card_id: int, db: Session = Depends(get_db)):
+    """停用知识卡片（不参与检索）。"""
     try:
         data = KnowledgeService(db).disable(card_id)
         return success_response(data, "已停用")
@@ -105,6 +115,7 @@ def disable_knowledge_card(card_id: int, db: Session = Depends(get_db)):
 
 @router.delete("/{card_id}")
 def delete_knowledge_card(card_id: int, db: Session = Depends(get_db)):
+    """软删除知识卡片。"""
     try:
         KnowledgeService(db).soft_delete(card_id)
         return success_response(None, "删除成功")

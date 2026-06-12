@@ -9,6 +9,8 @@ ModelT = TypeVar("ModelT", bound=Base)
 
 
 class BaseRepository(Generic[ModelT]):
+    """通用仓储基类，提供按 ID 查询、计数与分页列表。"""
+
     def __init__(self, session: Session, model: type[ModelT]) -> None:
         self.session = session
         self.model = model

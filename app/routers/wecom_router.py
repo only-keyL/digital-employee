@@ -1,4 +1,4 @@
-"""WeCom callback routes — URL verify, real XML, and mock JSON."""
+"""企业微信回调路由：URL 验证、真实 XML 回调与 Mock JSON。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ def wecom_url_verify(
     echostr: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> PlainTextResponse:
+    """企业微信 GET 回调 URL 验证（验签并返回 echostr）。"""
     service = WecomCallbackService(db)
     result = service.verify_callback_url(
         msg_signature=msg_signature,
@@ -40,6 +41,7 @@ async def wecom_real_callback(
     nonce: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> Response:
+    """企业微信真实 POST 消息回调，返回被动回复 XML。"""
     if not settings.wecom_enabled:
         return JSONResponse(status_code=503, content={"error": "wecom disabled"})
 
@@ -59,6 +61,7 @@ def wecom_mock_callback(
     payload: WecomMockCallbackRequest,
     db: Session = Depends(get_db),
 ) -> Response:
+    """本地 Mock 企业微信回调（JSON 入参），用于开发演示。"""
     service = WecomCallbackService(db)
     xml_body = service.handle_mock_callback(payload)
     return Response(content=xml_body, media_type="application/xml")

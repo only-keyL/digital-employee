@@ -1,4 +1,7 @@
-"""Seed data acceptance script for Phase 3."""
+"""演示种子数据验收脚本（阶段三）。
+
+检查 knowledge_card 表中是否存在足够的 approved+enabled 演示数据。
+"""
 
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ from app.models.knowledge_card import KnowledgeCard
 
 
 def main() -> int:
+    """检查演示种子数据是否就绪，返回进程退出码。"""
     print(f"Checking seed data in: {settings.mysql_database}")
     with SessionLocal() as session:
         total = session.scalar(

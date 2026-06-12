@@ -1,4 +1,4 @@
-# 企业微信数字员工助手（digital-employee-assistant）
+﻿# 企业微信数字员工助手（digital-employee-assistant）
 
 ## MVP 已交付
 
@@ -12,16 +12,16 @@
 
 | 文档 | 说明 |
 |------|------|
-| [docs/MVP_DELIVERY.md](docs/MVP_DELIVERY.md) | **交付总览**（能力、边界、验收、backlog） |
-| [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
-| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | **演示脚本**（领导版 15min / 技术版 25min） |
-| [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md) | **MVP 最终验收**命令与通过标准 |
-| [docs/WECOM_INTEGRATION.md](docs/WECOM_INTEGRATION.md) | 企业微信真实接入（生产向） |
-| [docs/DECISIONS.md](docs/DECISIONS.md) | 架构决策与 MVP 边界 |
+| [docs/MVP交付说明.md](docs/MVP交付说明.md) | **交付总览**（能力、边界、验收、backlog） |
+| [docs/本地启动说明.md](docs/本地启动说明.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
+| [docs/演示脚本.md](docs/演示脚本.md) | **演示脚本**（领导版 15min / 技术版 25min） |
+| [docs/验收清单.md](docs/验收清单.md) | **MVP 最终验收**命令与通过标准 |
+| [docs/企业微信接入指南.md](docs/企业微信接入指南.md) | 企业微信真实接入（生产向） |
+| [docs/架构决策.md](docs/架构决策.md) | 架构决策与 MVP 边界 |
 
 ## 快速启动
 
-完整步骤见 [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md)。摘要：
+完整步骤见 [docs/本地启动说明.md](docs/本地启动说明.md)。摘要：
 
 ```powershell
 cd F:\WorkSpace\digital-employee-assistant
@@ -38,14 +38,14 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 ## 演示与验收
 
-- **演示**：[docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
-- **验收**：[docs/ACCEPTANCE_CHECKLIST.md#mvp-最终验收](docs/ACCEPTANCE_CHECKLIST.md#mvp-最终验收)
+- **演示**：[docs/演示脚本.md](docs/演示脚本.md)
+- **验收**：[docs/验收清单.md#mvp-最终验收](docs/验收清单.md#mvp-最终验收)
 
 ---
 
 ## 历史开发记录（阶段二至十一）
 
-> 以下为分阶段开发过程文档，新用户请优先阅读 [MVP_DELIVERY.md](docs/MVP_DELIVERY.md)。技术栈：FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith。
+> 以下为分阶段开发过程文档，新用户请优先阅读 [MVP交付说明.md](docs/MVP交付说明.md)。技术栈：FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith。
 
 ### 环境要求
 
@@ -152,7 +152,7 @@ python scripts/check_seed_data.py
 - **source_type**：企业微信入口固定 `source_type=wecom` 写入 `question_log`
 - **去重**：进程内 TTL（`WECOM_DEDUP_TTL_SECONDS`），重启 uvicorn 后缓存清空；多实例需 Redis（本阶段不做）
 - **WECOM_BOT_KEY**：仅文档说明用于未来主动发送，**不用于接收回调**
-- **加解密**：AES 完整实现未就绪，生产前见 `docs/WECOM_INTEGRATION.md`
+- **加解密**：AES 完整实现未就绪，生产前见 `docs/企业微信接入指南.md`
 
 ### 2. 企业微信配置（`.env`）
 

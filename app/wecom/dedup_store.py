@@ -10,6 +10,8 @@ from app.wecom.constants import DEDUP_MAX_ENTRIES
 
 
 class WecomDedupStore:
+    """进程内 msg_id 去重缓存，避免重复消息触发多次问答。"""
+
     def __init__(self, *, ttl_seconds: int = 86400, max_entries: int = DEDUP_MAX_ENTRIES) -> None:
         self._ttl_seconds = max(1, ttl_seconds)
         self._max_entries = max(1, max_entries)
@@ -26,6 +28,7 @@ class WecomDedupStore:
             self._entries.popitem(last=False)
 
     def get_cached_xml(self, msg_id: str) -> str | None:
+        """按 msg_id 获取已缓存的回复 XML，过期则返回 None。"""
         now = time.time()
         with self._lock:
             self._evict_expired(now)
@@ -40,6 +43,7 @@ class WecomDedupStore:
             return xml_body
 
     def save_xml(self, msg_id: str, xml_body: str) -> None:
+        """缓存 msg_id 对应的回复 XML。"""
         now = time.time()
         with self._lock:
             self._evict_expired(now)

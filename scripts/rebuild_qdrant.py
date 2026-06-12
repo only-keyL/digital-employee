@@ -1,4 +1,7 @@
-"""Rebuild Qdrant vectors from MySQL knowledge cards."""
+"""从 MySQL 知识卡片重建 Qdrant 向量索引。
+
+支持 --recreate 参数：先删除并重建集合再全量 upsert。
+"""
 
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ from app.services.vector_sync_service import VectorSyncService
 
 
 def main() -> int:
+    """执行 Qdrant 向量重建，返回进程退出码。"""
     parser = argparse.ArgumentParser(description="Rebuild Qdrant knowledge card vectors from MySQL")
     parser.add_argument(
         "--recreate",

@@ -1,4 +1,7 @@
-"""Health check script for Phase 1 acceptance."""
+"""健康检查验收脚本（阶段一）。
+
+请求 /api/health 并校验 status、module 等字段。
+"""
 
 from __future__ import annotations
 
@@ -15,6 +18,7 @@ from app.config.settings import settings
 
 
 def main() -> int:
+    """执行健康检查验收，返回进程退出码。"""
     url = settings.health_check_url
     try:
         response = httpx.get(url, timeout=5.0)

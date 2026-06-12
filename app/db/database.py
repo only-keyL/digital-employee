@@ -17,10 +17,11 @@ engine = create_engine(
     echo=settings.app_debug,
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)  # 线程内会话工厂
 
 
 def get_db() -> Generator[Session, None, None]:
+    """FastAPI 依赖：请求级数据库会话，结束时自动关闭。"""
     db = SessionLocal()
     try:
         yield db

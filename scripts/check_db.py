@@ -1,4 +1,7 @@
-"""Database check script for Phase 2 acceptance."""
+"""数据库连接与表结构验收脚本（阶段二）。
+
+验证 MySQL 连通性及核心业务表是否已创建。
+"""
 
 from __future__ import annotations
 
@@ -15,6 +18,7 @@ if str(ROOT) not in sys.path:
 from app.config.settings import settings
 from app.db.database import engine
 
+# 阶段二要求必须存在的核心业务表
 EXPECTED_TABLES = {
     "feedback_log",
     "knowledge_card",
@@ -26,6 +30,7 @@ EXPECTED_TABLES = {
 
 
 def main() -> int:
+    """执行数据库连通性与表结构验收，返回进程退出码。"""
     print(f"Checking MySQL: {settings.mysql_host}:{settings.mysql_port}/{settings.mysql_database}")
     try:
         with engine.connect() as conn:

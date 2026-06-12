@@ -1,3 +1,5 @@
+"""知识卡片数据访问层。"""
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -6,14 +8,18 @@ from app.repositories.base_repository import BaseRepository
 
 
 class KnowledgeRepository(BaseRepository[KnowledgeCard]):
+    """knowledge_card 表查询与持久化。"""
+
     def __init__(self, session: Session) -> None:
         super().__init__(session, KnowledgeCard)
 
     def get_by_id(self, card_id: int) -> KnowledgeCard | None:
+        """按主键查询（含已删除）。"""
         stmt = select(KnowledgeCard).where(KnowledgeCard.id == card_id)
         return self.session.scalars(stmt).first()
 
     def get_active_by_id(self, card_id: int) -> KnowledgeCard | None:
+        """按主键查询未软删除的卡片。"""
         stmt = select(KnowledgeCard).where(
             KnowledgeCard.id == card_id,
             KnowledgeCard.deleted == 0,
@@ -21,6 +27,7 @@ class KnowledgeRepository(BaseRepository[KnowledgeCard]):
         return self.session.scalars(stmt).first()
 
     def get_searchable_by_id(self, card_id: int) -> KnowledgeCard | None:
+        """查询可参与 RAG 检索的卡片（已审核且启用）。"""
         stmt = select(KnowledgeCard).where(
             KnowledgeCard.id == card_id,
             KnowledgeCard.deleted == 0,
@@ -30,6 +37,7 @@ class KnowledgeRepository(BaseRepository[KnowledgeCard]):
         return self.session.scalars(stmt).first()
 
     def list_approved_enabled(self) -> list[KnowledgeCard]:
+        """列出全部已审核且启用的卡片。"""
         stmt = (
             select(KnowledgeCard)
             .where(
@@ -58,6 +66,7 @@ class KnowledgeRepository(BaseRepository[KnowledgeCard]):
         return self.session.scalars(stmt).first()
 
     def find_login_permission_card(self) -> KnowledgeCard | None:
+        """查找登录权限演示卡片（规则匹配遗留）。"""
         preferred_title = "登录失败提示账号无权限处理办法"
         stmt = select(KnowledgeCard).where(
             KnowledgeCard.deleted == 0,

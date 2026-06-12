@@ -19,6 +19,8 @@ class KnowledgeServiceError(Exception):
 
 
 class KnowledgeService:
+    """知识卡片 CRUD、审核流转与向量同步编排。"""
+
     def __init__(self, session: Session) -> None:
         self.session = session
         self.repo = KnowledgeRepository(session)

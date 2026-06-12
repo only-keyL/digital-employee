@@ -1,7 +1,7 @@
-"""WeCom message crypto helpers (Phase 11: reservation only, not production-ready).
+﻿"""WeCom message crypto helpers (Phase 11: reservation only, not production-ready).
 
 Full AES-CBC decrypt for EncodingAESKey is not implemented in this phase.
-See docs/WECOM_INTEGRATION.md before enabling encrypted callbacks in production.
+See docs/企业微信接入指南.md before enabling encrypted callbacks in production.
 """
 
 from __future__ import annotations
@@ -12,10 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 def decrypt_echostr(*, encoding_aes_key: str, echostr: str) -> str | None:
-    """Reserved hook for decrypting URL verification echostr.
-
-    Returns None when AES decrypt is unavailable (current default).
-    """
+    """解密 URL 验证 echostr 的预留钩子；当前阶段未实现 AES，返回 None。"""
     if not encoding_aes_key or not echostr:
         return None
     logger.warning(
@@ -26,7 +23,7 @@ def decrypt_echostr(*, encoding_aes_key: str, echostr: str) -> str | None:
 
 
 def decrypt_message_body(*, encoding_aes_key: str, body: str) -> str | None:
-    """Reserved hook for decrypting encrypted POST callback bodies."""
+    """解密加密 POST 回调报文的预留钩子；当前阶段未实现 AES。"""
     if not encoding_aes_key or not body:
         return None
     logger.warning("WeCom AES message decrypt is not fully implemented in Phase 11.")

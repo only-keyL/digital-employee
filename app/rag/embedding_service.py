@@ -19,6 +19,8 @@ class EmbeddingServiceError(Exception):
 
 
 class EmbeddingProvider(ABC):
+    """文本向量化提供者抽象接口。"""
+
     @abstractmethod
     def embed_text(self, text: str) -> list[float]:
         raise NotImplementedError
@@ -55,6 +57,8 @@ def _stable_mock_vector(text: str, dim: int) -> list[float]:
 
 
 class FastEmbedProvider(EmbeddingProvider):
+    """基于 fastembed 库的本地嵌入模型提供者。"""
+
     def __init__(self, model_name: str) -> None:
         self._model_name = model_name
         self._model = None
@@ -88,6 +92,8 @@ class FastEmbedProvider(EmbeddingProvider):
 
 
 class OpenAICompatibleProvider(EmbeddingProvider):
+    """调用 OpenAI 兼容 /embeddings 接口的远程嵌入提供者。"""
+
     def __init__(
         self,
         *,
@@ -133,6 +139,8 @@ class OpenAICompatibleProvider(EmbeddingProvider):
 
 
 class MockEmbeddingProvider(EmbeddingProvider):
+    """基于文本哈希的确定性 mock 向量，用于无 API 演示。"""
+
     def __init__(self, dimension: int) -> None:
         self._dimension = dimension
 
@@ -151,6 +159,8 @@ class MockEmbeddingProvider(EmbeddingProvider):
 
 
 class EmbeddingService:
+    """嵌入服务门面，按配置选择具体 EmbeddingProvider。"""
+
     def __init__(self, provider: EmbeddingProvider | None = None) -> None:
         self._provider = provider or _create_provider()
 
@@ -194,4 +204,5 @@ def _create_provider() -> EmbeddingProvider:
 
 @lru_cache
 def get_embedding_service() -> EmbeddingService:
+    """获取全局单例 EmbeddingService。"""
     return EmbeddingService()

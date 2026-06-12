@@ -1,4 +1,4 @@
-# MVP 最终交付说明
+﻿# MVP 最终交付说明
 
 > **digital-employee-assistant** — 企业微信实施群知识沉淀型数字员工  
 > 阶段一至十一已全部完成。本文档为 MVP 交付总览，**不是生产上线手册**。
@@ -116,7 +116,7 @@
 | 产品 | 无多轮对话、无工单、无客服工作台 |
 | 组织 | 无用户身份同步、无权限分级 |
 
-详见本文档第 13 节「后续生产化建议」及 `docs/WECOM_INTEGRATION.md`。
+详见本文档第 13 节「后续生产化建议」及 `docs/企业微信接入指南.md`。
 
 ---
 
@@ -185,7 +185,7 @@
 
 ## 11. 最终验收脚本清单
 
-完整顺序见 [`docs/ACCEPTANCE_CHECKLIST.md`](ACCEPTANCE_CHECKLIST.md#mvp-最终验收)。
+完整顺序见 [`docs/验收清单.md`](验收清单.md#mvp-最终验收)。
 
 | 脚本 | 用途 |
 |------|------|
@@ -209,13 +209,13 @@
 
 | 文档 | 用途 |
 |------|------|
-| [LOCAL_SETUP.md](LOCAL_SETUP.md) | 本地启动一站式说明 |
-| [DEMO_SCRIPT.md](DEMO_SCRIPT.md) | 领导版 / 技术版演示脚本 |
-| [ACCEPTANCE_CHECKLIST.md](ACCEPTANCE_CHECKLIST.md) | 验收命令与通过标准 |
-| [WECOM_INTEGRATION.md](WECOM_INTEGRATION.md) | 企业微信真实接入（生产向） |
-| [DECISIONS.md](DECISIONS.md) | 架构决策与 MVP 边界 |
-| [MASTER_PLAN.md](MASTER_PLAN.md) | 阶段总览与交付物索引 |
-| [CURSOR_EXECUTION_LOG.md](CURSOR_EXECUTION_LOG.md) | 开发执行记录 |
+| [本地启动说明.md](本地启动说明.md) | 本地启动一站式说明 |
+| [演示脚本.md](演示脚本.md) | 领导版 / 技术版演示脚本 |
+| [验收清单.md](验收清单.md) | 验收命令与通过标准 |
+| [企业微信接入指南.md](企业微信接入指南.md) | 企业微信真实接入（生产向） |
+| [架构决策.md](架构决策.md) | 架构决策与 MVP 边界 |
+| [总阶段规划.md](总阶段规划.md) | 阶段总览与交付物索引 |
+| [执行记录.md](执行记录.md) | 开发执行记录 |
 
 ---
 

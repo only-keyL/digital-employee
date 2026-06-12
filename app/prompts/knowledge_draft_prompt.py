@@ -1,4 +1,4 @@
-"""Prompt template for generating knowledge card draft from unanswered question."""
+"""未命中问题由知识卡片草稿生成的 Prompt 模板。"""
 
 KNOWLEDGE_DRAFT_PROMPT_TEMPLATE = """你是企业实施知识库编辑助手。请根据以下未命中问题，生成一条知识卡片草稿。
 

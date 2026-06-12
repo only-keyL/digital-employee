@@ -1,4 +1,4 @@
-"""LangGraph nodes for /api/ask workflow (Phase 7)."""
+"""LangGraph 问答工作流节点（阶段七）。"""
 
 from __future__ import annotations
 
@@ -22,6 +22,7 @@ from app.services.retrieval_service import RetrievalHit, RetrievalService
 
 
 def _get_db_session(config: RunnableConfig) -> Session:
+    """从 LangGraph RunnableConfig 取出当前请求的 SQLAlchemy Session。"""
     configurable = config.get("configurable") or {}
     session = configurable.get("db")
     if session is None:
@@ -30,6 +31,7 @@ def _get_db_session(config: RunnableConfig) -> Session:
 
 
 def _hits_from_state(state: AskState, session: Session) -> list[RetrievalHit]:
+    """将 state 中的 retrieval_hits 还原为带 ORM 对象的 RetrievalHit 列表。"""
     repo = KnowledgeRepository(session)
     hits: list[RetrievalHit] = []
     for item in state.get("retrieval_hits") or []:
@@ -50,6 +52,7 @@ def _hits_from_state(state: AskState, session: Session) -> list[RetrievalHit]:
 
 
 def validate_input_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：校验问题非空；空问题不写日志并直接结束。"""
     question = (state.get("question_raw") or "").strip()
     if not question:
         return {
@@ -75,6 +78,7 @@ def validate_input_node(state: AskState, config: RunnableConfig) -> dict[str, An
 
 
 def preprocess_question_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：填充 question_masked / rewritten_question 等字段（当前为占位实现）。"""
     question = state.get("question_raw") or ""
     return {
         "question_masked": question,
@@ -87,6 +91,7 @@ def preprocess_question_node(state: AskState, config: RunnableConfig) -> dict[st
 
 
 def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：调用 RetrievalService 做 Qdrant 向量检索。"""
     session = _get_db_session(config)
     question_masked = state.get("question_masked") or ""
     retrieval_started = time.perf_counter()
@@ -123,6 +128,7 @@ def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
 
 
 def match_judge_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：根据检索原始结果写入 matched、sources、similarity_score。"""
     matched = bool(state.get("_raw_matched", False))
     similarity_score = float(state.get("_raw_similarity_score") or 0.0)
     fallback_reason = state.get("_raw_fallback_reason")
@@ -154,6 +160,7 @@ def match_judge_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
 
 
 def generate_answer_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：命中后调用 AnswerGenerationService 生成 LLM 答案。"""
     session = _get_db_session(config)
     question_masked = state.get("question_masked") or ""
     hits = _hits_from_state(state, session)
@@ -171,6 +178,7 @@ def generate_answer_node(state: AskState, config: RunnableConfig) -> dict[str, A
 
 
 def handle_miss_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：未命中时返回固定 FALLBACK_ANSWER，不调用 LLM。"""
     return {
         "answer": FALLBACK_ANSWER,
         "need_human": False,
@@ -183,6 +191,7 @@ def handle_miss_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
 
 
 def error_fallback_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：检索异常时的固定兜底回答。"""
     return {
         "answer": RETRIEVAL_ERROR_ANSWER,
         "matched": False,
@@ -199,6 +208,7 @@ def error_fallback_node(state: AskState, config: RunnableConfig) -> dict[str, An
 
 
 def write_log_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
+    """节点：写入 question_log 与 unanswered_question，返回 question_log_id。"""
     session = _get_db_session(config)
     started_at = state.get("started_at") or time.perf_counter()
     latency_ms = int((time.perf_counter() - started_at) * 1000)

@@ -18,6 +18,8 @@ class UnansweredConvertError(Exception):
 
 
 class UnansweredConvertService:
+    """未命中问题转化：转为知识草稿或标记忽略。"""
+
     VALID_STATUSES = {"pending", "converted", "ignored"}
 
     def __init__(self, session: Session) -> None:

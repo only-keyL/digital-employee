@@ -1,3 +1,5 @@
+"""页面路由（Jinja2 管理后台与问答测试页）。"""
+
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, Form, Query, Request
@@ -23,6 +25,7 @@ DEFAULT_PAGE_SIZE = 20
 
 
 def _page_context(request: Request, active_page: str, **extra) -> dict:
+    """构建 Jinja2 模板公共上下文（导航、环境信息、闪存消息）。"""
     return {
         "request": request,
         "app_name": settings.app_name,
@@ -41,6 +44,7 @@ def _page_context(request: Request, active_page: str, **extra) -> dict:
 
 
 def _redirect_knowledge_list(message: str | None = None, error: str | None = None) -> RedirectResponse:
+    """重定向到知识卡片列表，可选携带成功/错误提示。"""
     url = "/knowledge-cards"
     params: list[str] = []
     if message:
@@ -53,6 +57,7 @@ def _redirect_knowledge_list(message: str | None = None, error: str | None = Non
 
 
 def _redirect_knowledge_detail(card_id: int, message: str | None = None, error: str | None = None) -> RedirectResponse:
+    """重定向到知识卡片详情页。"""
     url = f"/knowledge-cards/{card_id}"
     params: list[str] = []
     if message:
@@ -79,6 +84,7 @@ def _build_form_payload(
     source_group: str = "",
     source_user: str = "",
 ) -> dict:
+    """将表单字段组装为知识卡片 payload 字典。"""
     return {
         "title": title,
         "question": question,
@@ -97,12 +103,14 @@ def _build_form_payload(
 
 
 def _normalize_pagination(page: int, page_size: int) -> tuple[int, int]:
+    """校正分页参数（页码≥1，每页条数上限 MAX_PAGE_SIZE）。"""
     page = max(page, 1)
     page_size = min(max(page_size, 1), MAX_PAGE_SIZE)
     return page, page_size
 
 
 def _db_error_message(exc: Exception) -> str:
+    """将数据库异常转为面向用户的友好提示。"""
     return (
         "数据库连接失败，请确认 MySQL 已启动、已执行 init_mysql.sql 建库，"
         "并已运行 python app/db/init_db.py 初始化表结构。"
@@ -112,6 +120,7 @@ def _db_error_message(exc: Exception) -> str:
 
 @router.get("/ask-test", response_class=HTMLResponse)
 def ask_test_page(request: Request) -> HTMLResponse:
+    """问答联调测试页。"""
     return templates.TemplateResponse(
         request=request,
         name="ask_test.html",
@@ -121,6 +130,7 @@ def ask_test_page(request: Request) -> HTMLResponse:
 
 @router.get("/", response_class=HTMLResponse)
 def index(request: Request) -> HTMLResponse:
+    """管理后台首页。"""
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -135,6 +145,7 @@ def knowledge_cards(
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> HTMLResponse:
+    """知识卡片列表页。"""
     page, page_size = _normalize_pagination(page, page_size)
     context = {"items": [], "total": 0, "page": page, "page_size": page_size, "db_error": None}
     try:
@@ -151,6 +162,7 @@ def knowledge_cards(
 
 @router.get("/knowledge-cards/new", response_class=HTMLResponse)
 def knowledge_card_new_page(request: Request) -> HTMLResponse:
+    """新增知识卡片表单页。"""
     return templates.TemplateResponse(
         request=request,
         name="knowledge_form.html",
@@ -183,6 +195,7 @@ def knowledge_card_create(
     source_group: str = Form(""),
     source_user: str = Form("admin"),
 ):
+    """提交新建知识卡片表单。"""
     payload = _build_form_payload(
         title, question, answer, system_name, module_name, tags, scene,
         reason_analysis, troubleshooting_steps, solution, risk_notice,
@@ -213,6 +226,7 @@ def knowledge_card_detail(
     card_id: int,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
+    """知识卡片详情页。"""
     try:
         card = KnowledgeService(db).get_detail(card_id)
         return templates.TemplateResponse(
@@ -233,6 +247,7 @@ def knowledge_card_detail(
 
 @router.get("/knowledge-cards/{card_id:int}/edit", response_class=HTMLResponse)
 def knowledge_card_edit_page(request: Request, card_id: int, db: Session = Depends(get_db)) -> HTMLResponse:
+    """编辑知识卡片表单页。"""
     try:
         card = KnowledgeService(db).get_detail(card_id)
         return templates.TemplateResponse(
@@ -272,6 +287,7 @@ def knowledge_card_update(
     source_group: str = Form(""),
     source_user: str = Form("admin"),
 ):
+    """提交编辑知识卡片表单。"""
     payload = _build_form_payload(
         title, question, answer, system_name, module_name, tags, scene,
         reason_analysis, troubleshooting_steps, solution, risk_notice,
@@ -299,6 +315,7 @@ def knowledge_card_update(
 
 @router.post("/knowledge-cards/{card_id:int}/submit-audit")
 def knowledge_card_submit_audit(card_id: int, db: Session = Depends(get_db)):
+    """提交知识卡片进入待审核状态。"""
     try:
         KnowledgeService(db).submit_audit(card_id)
         return _redirect_knowledge_list("已提交审核")
@@ -314,6 +331,7 @@ def knowledge_card_audit(
     audit_user: str = Form("admin"),
     audit_remark: str = Form(""),
 ):
+    """审核知识卡片（通过/拒绝）。"""
     try:
         payload = KnowledgeAuditRequest(
             audit_status=audit_status,
@@ -329,6 +347,7 @@ def knowledge_card_audit(
 
 @router.post("/knowledge-cards/{card_id:int}/enable")
 def knowledge_card_enable(card_id: int, db: Session = Depends(get_db)):
+    """启用知识卡片。"""
     try:
         KnowledgeService(db).enable(card_id)
         return _redirect_knowledge_list("知识卡片已启用")
@@ -338,6 +357,7 @@ def knowledge_card_enable(card_id: int, db: Session = Depends(get_db)):
 
 @router.post("/knowledge-cards/{card_id:int}/disable")
 def knowledge_card_disable(card_id: int, db: Session = Depends(get_db)):
+    """停用知识卡片。"""
     try:
         KnowledgeService(db).disable(card_id)
         return _redirect_knowledge_list("知识卡片已停用")
@@ -347,6 +367,7 @@ def knowledge_card_disable(card_id: int, db: Session = Depends(get_db)):
 
 @router.post("/knowledge-cards/{card_id:int}/delete")
 def knowledge_card_delete(card_id: int, db: Session = Depends(get_db)):
+    """软删除知识卡片。"""
     try:
         KnowledgeService(db).soft_delete(card_id)
         return _redirect_knowledge_list("知识卡片已删除")
@@ -362,6 +383,7 @@ def unanswered_questions(
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     status: str | None = Query("pending"),
 ) -> HTMLResponse:
+    """未命中问题列表页。"""
     page, page_size = _normalize_pagination(page, page_size)
     status_filter = status if status is not None else ""
     context = {
@@ -393,6 +415,7 @@ def unanswered_question_detail(
     db: Session = Depends(get_db),
     status: str | None = Query(None),
 ) -> HTMLResponse:
+    """未命中问题详情页（含草稿预览与转化）。"""
     context = {
         "item": None,
         "page_error": None,
@@ -420,6 +443,7 @@ def question_logs(
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
 ) -> HTMLResponse:
+    """问答日志列表页。"""
     page, page_size = _normalize_pagination(page, page_size)
     context = {"items": [], "total": 0, "page": page, "page_size": page_size, "db_error": None}
     try:
@@ -442,6 +466,7 @@ def feedback_list(
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     feedback_type: str | None = Query(None),
 ) -> HTMLResponse:
+    """用户反馈列表页。"""
     page, page_size = _normalize_pagination(page, page_size)
     feedback_type_filter = feedback_type or ""
     context = {
@@ -475,6 +500,7 @@ def statistics(
     request: Request,
     db: Session = Depends(get_db),
 ) -> HTMLResponse:
+    """统计看板页面。"""
     context = {
         "db_error": None,
         "dashboard": {
