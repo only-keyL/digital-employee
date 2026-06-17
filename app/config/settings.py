@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     # --- 应用基础 ---
     app_name: str = "digital-employee-assistant"  # 应用名称
-    app_env: str = "dev"  # 运行环境
+    app_env: str = "mvpdocs"  # 运行环境
     app_host: str = "0.0.0.0"  # 监听地址
     app_port: int = 8000  # 监听端口
     app_debug: bool = True  # 调试模式

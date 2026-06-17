@@ -12,19 +12,20 @@
 
 | 文档 | 说明 |
 |------|------|
-| [docs/MVP交付说明.md](docs/MVP交付说明.md) | **交付总览**（能力、边界、验收、backlog） |
-| [docs/本地启动说明.md](docs/本地启动说明.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
-| [docs/演示脚本.md](docs/演示脚本.md) | **演示脚本**（领导版 15min / 技术版 25min） |
-| [docs/验收清单.md](docs/验收清单.md) | **MVP 最终验收**命令与通过标准 |
-| [docs/企业微信接入指南.md](docs/企业微信接入指南.md) | 企业微信真实接入（生产向） |
-| [docs/架构决策.md](docs/架构决策.md) | 架构决策与 MVP 边界 |
+| [docs/mvpdocs/MVP交付说明.md](docs/mvpdocs/MVP交付说明.md) | **交付总览**（能力、边界、验收、backlog） |
+| [docs/mvpdocs/新人快速上手指南.md](docs/mvpdocs/新人快速上手指南.md) | **新人入口**（功能边界、业务流程、启动、架构、推荐阅读） |
+| [docs/mvpdocs/本地启动说明.md](docs/mvpdocs/本地启动说明.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
+| [docs/mvpdocs/演示脚本.md](docs/mvpdocs/演示脚本.md) | **演示脚本**（领导版 15min / 技术版 25min） |
+| [docs/mvpdocs/验收清单.md](docs/mvpdocs/验收清单.md) | **MVP 最终验收**命令与通过标准 |
+| [docs/mvpdocs/企业微信接入指南.md](docs/mvpdocs/企业微信接入指南.md) | 企业微信真实接入（生产向） |
+| [docs/mvpdocs/架构决策.md](docs/mvpdocs/架构决策.md) | 架构决策与 MVP 边界 |
 
 ## 快速启动
 
-完整步骤见 [docs/本地启动说明.md](docs/本地启动说明.md)。摘要：
+完整步骤见 [docs/mvpdocs/本地启动说明.md](docs/mvpdocs/本地启动说明.md)。摘要：
 
 ```powershell
-cd F:\WorkSpace\digital-employee-assistant
+cd D:\studyspace\digital-employee
 .\.venv\Scripts\Activate.ps1
 
 # 仅首次：Copy-Item .env.example .env（已有 .env 勿覆盖）
@@ -38,14 +39,14 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 
 ## 演示与验收
 
-- **演示**：[docs/演示脚本.md](docs/演示脚本.md)
-- **验收**：[docs/验收清单.md#mvp-最终验收](docs/验收清单.md#mvp-最终验收)
+- **演示**：[docs/mvpdocs/演示脚本.md](docs/mvpdocs/演示脚本.md)
+- **验收**：[docs/mvpdocs/验收清单.md#mvp-最终验收](docs/mvpdocs/验收清单.md#mvp-最终验收)
 
 ---
 
 ## 历史开发记录（阶段二至十一）
 
-> 以下为分阶段开发过程文档，新用户请优先阅读 [MVP交付说明.md](docs/MVP交付说明.md)。技术栈：FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith。
+> 以下为分阶段开发过程文档，新用户请优先阅读 [docs/mvpdocs/MVP交付说明.md](docs/mvpdocs/MVP交付说明.md)。技术栈：FastAPI、Jinja2、Bootstrap 5、MySQL、Qdrant、LangChain、LangGraph、DeepSeek、LangSmith。
 
 ### 环境要求
 
@@ -152,7 +153,7 @@ python scripts/check_seed_data.py
 - **source_type**：企业微信入口固定 `source_type=wecom` 写入 `question_log`
 - **去重**：进程内 TTL（`WECOM_DEDUP_TTL_SECONDS`），重启 uvicorn 后缓存清空；多实例需 Redis（本阶段不做）
 - **WECOM_BOT_KEY**：仅文档说明用于未来主动发送，**不用于接收回调**
-- **加解密**：AES 完整实现未就绪，生产前见 `docs/企业微信接入指南.md`
+- **加解密**：AES 完整实现未就绪，生产前见 `docs/mvpdocs/企业微信接入指南.md`
 
 ### 2. 企业微信配置（`.env`）
 
@@ -458,7 +459,7 @@ python scripts/check_full_flow.py
 ### 1. 进入项目目录
 
 ```powershell
-cd F:\WorkSpace\digital-employee-assistant
+cd D:\studyspace\digital-employee
 ```
 
 ### 2. 创建并激活虚拟环境（推荐）
@@ -513,7 +514,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 {
   "status": "ok",
   "module": "digital-employee-assistant",
-  "env": "dev"
+  "env": "mvpdocs"
 }
 ```
 
@@ -522,7 +523,7 @@ python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 在**服务已启动**的前提下，另开一个终端执行：
 
 ```powershell
-cd F:\WorkSpace\digital-employee-assistant
+cd D:\studyspace\digital-employee
 python scripts/check_health.py
 ```
 
@@ -618,7 +619,7 @@ curl http://127.0.0.1:8001/api/health
 ## 目录结构（阶段一）
 
 ```text
-digital-employee-assistant/
+digital-employee/
 ├── app/
 │   ├── main.py
 │   ├── config/settings.py
