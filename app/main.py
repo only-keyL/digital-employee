@@ -43,6 +43,7 @@ from app.routers.page_router import router as page_router
 from app.routers.feedback_router import router as feedback_router
 from app.routers.infra_router import router as infra_router
 from app.routers.mock_wecom_router import router as mock_wecom_router
+from app.routers.operation_dashboard_router import router as operation_dashboard_router
 from app.routers.statistics_router import router as statistics_router
 from app.routers.unanswered_router import router as unanswered_router
 from app.routers.wecom_router import router as wecom_router
@@ -119,6 +120,9 @@ def create_app() -> FastAPI:
 
     # 注册用户反馈相关 API。
     app.include_router(feedback_router)
+
+    # 注册增强阶段5运营看板 API。
+    app.include_router(operation_dashboard_router)
 
     # 注册统计看板相关 API。
     app.include_router(statistics_router)

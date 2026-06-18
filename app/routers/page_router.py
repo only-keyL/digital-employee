@@ -13,6 +13,7 @@ from app.db.database import get_db
 from app.schemas.knowledge_schema import KnowledgeAuditRequest, KnowledgeCreate, KnowledgeUpdate
 from app.services.feedback_service import FeedbackService
 from app.services.knowledge_service import KnowledgeService, KnowledgeServiceError
+from app.services.operation_dashboard_service import OperationDashboardService
 from app.services.question_service import QuestionService
 from app.services.statistics_service import StatisticsService
 from app.services.unanswered_service import UnansweredService
@@ -530,4 +531,23 @@ def statistics(
         request=request,
         name="statistics.html",
         context=_page_context(request, "statistics", **context),
+    )
+
+
+@router.get("/operation-dashboard", response_class=HTMLResponse)
+def operation_dashboard(
+    request: Request,
+    days: int = Query(7, ge=1, le=365),
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """增强阶段5：运营看板页面。"""
+    context: dict = {"db_error": None, "dashboard": None, "days": days}
+    try:
+        context["dashboard"] = OperationDashboardService(db).get_dashboard_view_model(days=days)
+    except SQLAlchemyError as exc:
+        context["db_error"] = _db_error_message(exc)
+    return templates.TemplateResponse(
+        request=request,
+        name="operation_dashboard.html",
+        context=_page_context(request, "operation_dashboard", **context),
     )

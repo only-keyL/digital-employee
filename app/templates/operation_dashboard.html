@@ -1,0 +1,157 @@
+{% extends "layout.html" %}
+
+{% block title %}运营看板 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<link href="/static/css/dashboard.css" rel="stylesheet">
+
+<div class="page-header mb-3">
+    <h2 class="h4 mb-1">运营看板</h2>
+    <p class="text-muted small mb-0">
+        {% if dashboard %}{{ dashboard.intro }}{% else %}本看板用于展示数字员工的问答效果、知识库质量、用户反馈和知识治理情况。{% endif %}
+        <span class="ms-2">统计窗口：近 {{ days }} 天（重复检测 Top 相关）</span>
+    </p>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif dashboard %}
+{% set s = dashboard.summary %}
+{% set t = dashboard.tops %}
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">今日提问数</div><div class="stat-value">{{ s.question.today_count }}</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">总提问数</div><div class="stat-value">{{ s.question.total_count }}</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">命中率</div><div class="stat-value">{{ (s.question.hit_rate * 100) | round(1) }}%</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">回答有效率</div><div class="stat-value">{{ (s.feedback.effective_rate * 100) | round(1) }}%</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">知识卡片数</div><div class="stat-value">{{ s.knowledge.total }}</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">待复核知识</div><div class="stat-value">{{ s.knowledge.need_review }}</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">重复预警数</div><div class="stat-value">{{ s.duplicate.high_duplicate + s.duplicate.suspected_duplicate }}</div></div></div>
+    <div class="col-md-3"><div class="stat-card"><div class="stat-label">平均耗时(ms)</div><div class="stat-value">{{ s.question.avg_latency_ms or '-' }}</div></div></div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">置信度分布</h3>
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr><td>高</td><td>{{ s.confidence.high }}</td></tr>
+                    <tr><td>中</td><td>{{ s.confidence.medium }}</td></tr>
+                    <tr><td>低</td><td>{{ s.confidence.low }}</td></tr>
+                    <tr><td>无</td><td>{{ s.confidence.none }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">反馈分布</h3>
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr><td>有用</td><td>{{ s.feedback.useful }}</td></tr>
+                    <tr><td>无用</td><td>{{ s.feedback.useless }}</td></tr>
+                    <tr><td>补充</td><td>{{ s.feedback.supplement }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">知识状态分布</h3>
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr><td>已审核</td><td>{{ s.knowledge.approved }}</td></tr>
+                    <tr><td>待审核</td><td>{{ s.knowledge.pending }}</td></tr>
+                    <tr><td>草稿</td><td>{{ s.knowledge.draft }}</td></tr>
+                    <tr><td>已拒绝</td><td>{{ s.knowledge.rejected }}</td></tr>
+                    <tr><td>启用中</td><td>{{ s.knowledge.enabled }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">重复检测分布（近{{ days }}天）</h3>
+            <table class="table table-sm mb-0">
+                <tbody>
+                    <tr><td>总次数</td><td>{{ s.duplicate.total }}</td></tr>
+                    <tr><td>高度重复</td><td>{{ s.duplicate.high_duplicate }}</td></tr>
+                    <tr><td>疑似重复</td><td>{{ s.duplicate.suspected_duplicate }}</td></tr>
+                    <tr><td>相关知识</td><td>{{ s.duplicate.related }}</td></tr>
+                    <tr><td>无明显重复</td><td>{{ s.duplicate.none }}</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">高频未命中 Top10</h3>
+            {% if t.top_unanswered %}
+            <table class="table table-sm">
+                <thead><tr><th>问题</th><th>次数</th><th>状态</th></tr></thead>
+                <tbody>
+                {% for item in t.top_unanswered %}
+                <tr><td>{{ item.question }}</td><td>{{ item.frequency }}</td><td>{{ item.status }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">高频系统/模块 Top10</h3>
+            {% if t.top_modules %}
+            <table class="table table-sm">
+                <thead><tr><th>系统</th><th>模块</th><th>提问数</th></tr></thead>
+                <tbody>
+                {% for item in t.top_modules %}
+                <tr><td>{{ item.system_name }}</td><td>{{ item.module_name }}</td><td>{{ item.ask_count }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">最常被引用知识卡片 Top10</h3>
+            {% if t.top_referenced_cards %}
+            <table class="table table-sm">
+                <thead><tr><th>标题</th><th>引用次数</th></tr></thead>
+                <tbody>
+                {% for item in t.top_referenced_cards %}
+                <tr><td>{{ item.title }}</td><td>{{ item.reference_count }}</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="panel-card">
+            <h3 class="h6">风险知识卡片 Top10</h3>
+            {% if t.risk_cards %}
+            <table class="table table-sm">
+                <thead><tr><th>标题</th><th>无用</th><th>质量分</th><th>复核</th></tr></thead>
+                <tbody>
+                {% for item in t.risk_cards %}
+                <tr>
+                    <td>{{ item.title }}</td>
+                    <td>{{ item.useless_count }}</td>
+                    <td>{{ item.quality_score if item.quality_score is not none else '-' }}</td>
+                    <td>{% if item.need_review %}是{% else %}否{% endif %}</td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
