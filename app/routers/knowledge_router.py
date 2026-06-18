@@ -9,6 +9,7 @@ from app.db.database import get_db
 from app.schemas.common_schema import error_response, success_response
 from app.schemas.knowledge_schema import KnowledgeAuditRequest, KnowledgeCreate, KnowledgeUpdate
 from app.services.knowledge_service import KnowledgeService, KnowledgeServiceError
+from app.services.duplicate_check_service import DuplicateCheckError
 
 router = APIRouter(prefix="/api/knowledge-cards", tags=["knowledge-cards"])
 
@@ -58,6 +59,20 @@ def update_knowledge_card(card_id: int, payload: KnowledgeUpdate, db: Session = 
         data = KnowledgeService(db).update(card_id, payload)
         return success_response(data, "更新成功")
     except KnowledgeServiceError as exc:
+        return error_response(exc.message)
+    except SQLAlchemyError as exc:
+        return error_response(f"数据库操作失败: {exc}")
+
+
+@router.post("/{card_id}/duplicate-check")
+def check_duplicate_knowledge_card(card_id: int, db: Session = Depends(get_db)):
+    """手动检测知识卡片是否与已有知识高度相似。"""
+    try:
+        data = KnowledgeService(db).check_duplicate(card_id)
+        return success_response(data, "重复检测完成")
+    except KnowledgeServiceError as exc:
+        return error_response(exc.message)
+    except DuplicateCheckError as exc:
         return error_response(exc.message)
     except SQLAlchemyError as exc:
         return error_response(f"数据库操作失败: {exc}")

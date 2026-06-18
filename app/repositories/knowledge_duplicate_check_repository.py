@@ -19,6 +19,13 @@ class KnowledgeDuplicateCheckRepository(BaseRepository[KnowledgeDuplicateCheckLo
         self.session.flush()
         return record
 
+    def create_many(self, logs: list[KnowledgeDuplicateCheckLog]) -> list[KnowledgeDuplicateCheckLog]:
+        """批量保存重复检测日志。"""
+        for record in logs:
+            self.session.add(record)
+        self.session.flush()
+        return logs
+
     def list_recent(self, *, offset: int = 0, limit: int = 50) -> list[KnowledgeDuplicateCheckLog]:
         """按创建时间倒序查询最近的重复检测记录。"""
         stmt = select(KnowledgeDuplicateCheckLog).order_by(

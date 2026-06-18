@@ -136,3 +136,26 @@ class KnowledgeRepository(BaseRepository[KnowledgeCard]):
     def refresh(self, card: KnowledgeCard) -> KnowledgeCard:
         self.session.refresh(card)
         return card
+
+    def list_duplicate_candidates(self, *, exclude_card_id: int | None = None) -> list[KnowledgeCard]:
+        """查询可参与重复检测的候选知识卡片（approved / pending，未删除）。"""
+        stmt = (
+            select(KnowledgeCard)
+            .where(
+                KnowledgeCard.deleted == 0,
+                KnowledgeCard.audit_status.in_(("approved", "pending")),
+            )
+            .order_by(KnowledgeCard.id.asc())
+        )
+        if exclude_card_id is not None:
+            stmt = stmt.where(KnowledgeCard.id != exclude_card_id)
+        return list(self.session.scalars(stmt).all())
+
+    def get_duplicate_candidate_by_id(self, card_id: int) -> KnowledgeCard | None:
+        """查询重复检测候选卡片详情（仅 approved / pending 且未删除）。"""
+        card = self.get_active_by_id(card_id)
+        if card is None:
+            return None
+        if card.audit_status not in {"approved", "pending"}:
+            return None
+        return card

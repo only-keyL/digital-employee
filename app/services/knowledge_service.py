@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.models.knowledge_card import KnowledgeCard
 from app.repositories.knowledge_repository import KnowledgeRepository
 from app.schemas.knowledge_schema import KnowledgeAuditRequest, KnowledgeCreate, KnowledgeUpdate
+from app.services.duplicate_check_service import DuplicateCheckError, DuplicateCheckService
 from app.services.knowledge_content import card_to_content_dict, compute_content_hash
 
 DEFAULT_OPERATOR = "admin"
@@ -177,11 +178,35 @@ class KnowledgeService:
             raise KnowledgeServiceError("当前状态不允许提交审核")
         if not card.title or not card.question or not card.answer:
             raise KnowledgeServiceError("提交审核前请填写标题、标准问题和标准答案")
+
+        # 提交审核前执行重复检测，只预警不阻断；检测失败则不进入 pending
+        try:
+            duplicate_result = DuplicateCheckService(self.session).check_card_object(
+                card,
+                operator_user=operator,
+                source_type="card_submit",
+            )
+        except DuplicateCheckError as exc:
+            raise KnowledgeServiceError(exc.message) from exc
+
         card.audit_status = "pending"
         card.update_user = operator
         self.repo.save()
         self.repo.refresh(card)
-        return self._to_detail_dict(card)
+        data = self._to_detail_dict(card)
+        data["duplicate_check"] = duplicate_result.model_dump()
+        return data
+
+    def check_duplicate(self, card_id: int, operator: str = DEFAULT_OPERATOR) -> dict[str, Any]:
+        """手动触发重复检测，不改变卡片状态。"""
+        card = self._get_active_or_raise(card_id)
+        result = DuplicateCheckService(self.session).check_card_object(
+            card,
+            operator_user=operator,
+            source_type="card_manual_check",
+        )
+        self.repo.save()
+        return result.model_dump()
 
     def audit(self, card_id: int, payload: KnowledgeAuditRequest) -> dict[str, Any]:
         card = self._get_active_or_raise(card_id)

@@ -19,6 +19,7 @@ from app.models.knowledge_contribution import KnowledgeContribution
 from app.repositories.knowledge_contribution_repository import KnowledgeContributionRepository
 from app.repositories.knowledge_repository import KnowledgeRepository
 from app.schemas.wecom_message_schema import WeComMessage
+from app.services.duplicate_check_service import DuplicateCheckError, DuplicateCheckService
 from app.services.knowledge_card_parser import KnowledgeCardParser
 from app.services.knowledge_content import card_to_content_dict, compute_content_hash
 from app.services.knowledge_deposit_check_service import KnowledgeDepositCheckService
@@ -41,6 +42,8 @@ class KnowledgeDepositState(TypedDict, total=False):
     status: str
     reply: str
     knowledge_card_id: int | None
+    deposit_duplicate_check: dict
+    deposit_pre_check_hint: bool
     errors: list[str]
     started_at: float
     exit_session: bool
@@ -230,7 +233,7 @@ def route_after_ai(state: KnowledgeDepositState) -> Literal["continue", "reply"]
 
 
 async def duplicate_check(state: KnowledgeDepositState, config) -> KnowledgeDepositState:
-    """MySQL + Qdrant 重复检查。"""
+    """MySQL + Qdrant 轻量预检：仅记录提示信息，不阻断后续 DuplicateCheckService 正式检测。"""
     runner = _runner(config)
     parsed = state.get("parsed_card") or {}
     mysql_result = runner.check_service.check_mysql_duplicate(parsed)
@@ -238,6 +241,7 @@ async def duplicate_check(state: KnowledgeDepositState, config) -> KnowledgeDepo
     state["mysql_duplicate_result"] = {
         "duplicate_suspected": mysql_result.duplicate_suspected,
         "matches": mysql_result.mysql_matches,
+        "pre_check_only": True,
     }
     state["qdrant_duplicate_result"] = {
         "duplicate_suspected": qdrant_result.duplicate_suspected,
@@ -246,24 +250,18 @@ async def duplicate_check(state: KnowledgeDepositState, config) -> KnowledgeDepo
         "matches": qdrant_result.qdrant_matches,
         "skipped": qdrant_result.skipped,
         "message": qdrant_result.message,
+        "pre_check_only": True,
     }
 
+    # 旧预检结果只写入 state 供 contribution 参考，最终重复治理统一在 create_pending_knowledge 由 DuplicateCheckService 完成
     strong_dup = mysql_result.duplicate_suspected or qdrant_result.duplicate_suspected
     if strong_dup:
-        state["status"] = "duplicate_suspected"
-        preview = ""
-        matches = mysql_result.mysql_matches or qdrant_result.qdrant_matches
-        if matches:
-            m0 = matches[0]
-            preview = f"《{m0.get('title', '')}》"
-        state["reply"] = f"检测到疑似重复知识{preview}，已记录投稿，暂不自动生成待审核卡片。请联系管理员确认。"
-        state["exit_session"] = True
+        state["deposit_pre_check_hint"] = True
     return state
 
 
 def route_after_duplicate(state: KnowledgeDepositState) -> Literal["continue", "reply"]:
-    if state.get("status") == "duplicate_suspected":
-        return "reply"
+    # 方案 A：旧 duplicate_check 不再阻断，始终进入 risk_check → create_pending_knowledge
     return "continue"
 
 
@@ -299,12 +297,13 @@ def route_after_risk(state: KnowledgeDepositState) -> Literal["continue", "reply
 
 
 async def create_pending_knowledge(state: KnowledgeDepositState, config) -> KnowledgeDepositState:
-    """生成 audit_status=pending 的知识卡片，不同步 Qdrant。"""
+    """生成待审核知识卡片：先 draft 落库做重复检测，通过后改 pending。"""
     runner = _runner(config)
     parsed = state.get("parsed_card") or {}
     msg = state.get("message") or {}
     operator = msg.get("user_name") or msg.get("user_id") or "wecom_user"
 
+    # 先以 draft 写入并获得 ID，便于 duplicate_check_log 关联 source_card_id
     card = KnowledgeCard(
         title=parsed.get("title", "").strip(),
         question=parsed.get("question", "").strip(),
@@ -319,7 +318,7 @@ async def create_pending_knowledge(state: KnowledgeDepositState, config) -> Know
         risk_notice=parsed.get("risk_notice"),
         source_group=parsed.get("source_group") or msg.get("group_id"),
         source_user=parsed.get("source_user") or operator,
-        audit_status="pending",
+        audit_status="draft",
         enabled=0,
         deleted=0,
         vector_status="waiting_review",
@@ -331,14 +330,46 @@ async def create_pending_knowledge(state: KnowledgeDepositState, config) -> Know
     runner.knowledge_repo.add(card)
     runner.session.flush()
 
+    # 进入 pending 前执行 DuplicateCheckService，只预警不阻断；失败则不进入 pending
+    try:
+        duplicate_result = await DuplicateCheckService(runner.session).check_card_object_async(
+            card,
+            operator_user=operator,
+            source_type="user_deposit",
+        )
+    except DuplicateCheckError as exc:
+        runner.session.delete(card)
+        runner.session.flush()
+        state["status"] = "duplicate_check_failed"
+        state["reply"] = f"重复检测失败，暂未生成待审核知识卡片：{exc.message}"
+        state["exit_session"] = True
+        logger.warning("企微沉淀重复检测失败 card_id=%s error=%s", card.id, exc.message)
+        return state
+
+    # 检测成功：即使 high_duplicate 也只预警，卡片仍进入 pending
+    card.audit_status = "pending"
+    card.update_user = operator
+    runner.session.flush()
+
     state["knowledge_card_id"] = card.id
+    state["deposit_duplicate_check"] = duplicate_result.model_dump()
     state["status"] = "pending_card_created"
+
+    duplicate_note = ""
+    if duplicate_result.has_high_risk_duplicate or duplicate_result.highest_level in {
+        "high_duplicate",
+        "suspected_duplicate",
+    }:
+        duplicate_note = "发现相似知识，审核时请重点确认。"
+
     qdrant_note = ""
     qdrant_dup = state.get("qdrant_duplicate_result") or {}
     if qdrant_dup.get("duplicate_possible"):
         qdrant_note = "（系统检测到轻度语义相似，已进入人工审核队列）"
+
     state["reply"] = (
-        f"知识投稿已受理，已生成待审核知识卡片（ID={card.id}）{qdrant_note}。"
+        f"知识投稿已受理，已生成待审核知识卡片（ID={card.id}）。"
+        f"{duplicate_note}{qdrant_note}"
         "管理员审核通过后才会进入知识库与向量同步。"
     )
     state["exit_session"] = True
@@ -357,11 +388,17 @@ async def persist_and_reply(state: KnowledgeDepositState, config) -> KnowledgeDe
     contrib.completeness_score = state.get("completeness_score")
     contrib.missing_fields_json = json.dumps(state.get("missing_fields") or [], ensure_ascii=False)
     contrib.status = state.get("status") or "failed"
-    contrib.duplicate_suspected = state.get("status") == "duplicate_suspected"
+    contrib.duplicate_suspected = bool(
+        state.get("deposit_pre_check_hint")
+        or (state.get("deposit_duplicate_check") or {}).get("has_high_risk_duplicate")
+        or (state.get("deposit_duplicate_check") or {}).get("highest_level")
+        in {"high_duplicate", "suspected_duplicate"}
+    )
     contrib.duplicate_result_json = json.dumps(
         {
             "mysql": state.get("mysql_duplicate_result"),
             "qdrant": state.get("qdrant_duplicate_result"),
+            "duplicate_check_service": state.get("deposit_duplicate_check"),
         },
         ensure_ascii=False,
     )

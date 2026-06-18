@@ -162,6 +162,32 @@ class QdrantStore:
             )
         return hits
 
+    def search_by_vector(self, query_vector: list[float], *, top_k: int | None = None) -> list[QdrantSearchHit]:
+        """根据向量查询相似知识卡片，用于重复检测。"""
+        if not self._client.collection_exists(self._collection):
+            return []
+
+        limit = top_k or settings.top_k
+        results = self._client.query_points(
+            collection_name=self._collection,
+            query=query_vector,
+            limit=limit,
+            with_payload=True,
+        )
+        hits: list[QdrantSearchHit] = []
+        for point in results.points:
+            payload = point.payload or {}
+            card_id = int(payload.get("card_id", point.id))
+            hits.append(
+                QdrantSearchHit(
+                    card_id=card_id,
+                    title=str(payload.get("title", "")),
+                    score=float(point.score or 0.0),
+                    payload=payload,
+                )
+            )
+        return hits
+
     def rebuild_from_mysql(self, cards: list[KnowledgeCard]) -> tuple[int, int]:
         """批量从 MySQL 卡片重建向量索引，返回 (成功数, 失败数)。"""
         self.init_collection(recreate=False)

@@ -36,7 +36,7 @@ from app.schemas.mock_wecom_schema import MockWeComResponse
 from app.schemas.wecom_message_schema import WeComMessage
 from app.services.deposit_session_service import DepositSessionService
 from app.services.knowledge_card_parser import KnowledgeCardParser
-from app.services.knowledge_deposit_check_service import KnowledgeDepositCheckService
+from app.services.knowledge_deposit_check_service import AiCheckResult, KnowledgeDepositCheckService
 from app.services.knowledge_service import KnowledgeService
 from app.services.vector_sync_service import should_index_card
 from app.wecom.command_router import CommandRouter
@@ -109,6 +109,17 @@ def _msg(*, group_id: str, user_id: str, content: str, message_id: str | None = 
         user_id=user_id,
         user_name="supplement-check",
         content=content,
+    )
+
+
+async def _mock_ai_quality_pass(_self, _parsed_card: dict) -> AiCheckResult:
+    """回归验收用：避免真实 LLM JSON 波动导致 fast 回归不稳定。"""
+    return AiCheckResult(
+        passed=True,
+        score=0.9,
+        missing=[],
+        suggestions=[],
+        reason="stage4 supplement acceptance mock",
     )
 
 
@@ -227,6 +238,7 @@ async def check_contribution_link(
 
 
 async def check_duplicate_no_card(session, router: CommandRouter, suffix: str) -> CheckResult:
+    """阶段3方案A：强重复仍进入 pending，仅标记 duplicate_suspected 并写检测结果。"""
     gid = f"supp-dup-{suffix}"
     uid = f"supp-dup-u-{suffix}"
     await router.route(_msg(group_id=gid, user_id=uid, content="【沉淀】"))
@@ -238,14 +250,20 @@ async def check_duplicate_no_card(session, router: CommandRouter, suffix: str) -
                 KnowledgeContribution.contribution_id == resp.contribution_id
             )
         )
-    ok = resp.status == "duplicate_suspected" and resp.knowledge_card_id is None
+    ok = resp.status == "pending_card_created" and resp.knowledge_card_id is not None
     if contrib:
-        ok = ok and contrib.knowledge_card_id is None and contrib.duplicate_suspected is True
+        dup_json = contrib.duplicate_result_json or ""
+        ok = ok and (
+            bool(contrib.duplicate_suspected)
+            or "duplicate_check_service" in dup_json
+            or "duplicate_suspected" in dup_json
+        )
     detail = (
         f"status={resp.status} knowledge_card_id={resp.knowledge_card_id} "
-        f"duplicate_suspected={contrib.duplicate_suspected if contrib else 'N/A'}"
+        f"duplicate_suspected={contrib.duplicate_suspected if contrib else 'N/A'} "
+        f"(方案A：强重复不阻断，仍生成 pending)"
     )
-    return CheckResult("4. duplicate_suspected 无卡片", ok, detail)
+    return CheckResult("4. 强重复仍生成 pending（方案A）", ok, detail)
 
 
 async def check_risk_no_card(session, router: CommandRouter, suffix: str) -> CheckResult:
@@ -378,35 +396,39 @@ def check_langsmith_desensitize() -> CheckResult:
 
 
 async def run_all(env_file: str) -> int:
+    from unittest.mock import patch
+
     settings = apply_env_file(env_file)
     suffix = uuid.uuid4().hex[:8]
     results: list[CheckResult] = []
 
     print("Stage4 补充验收开始")
     print(f"env={settings.app_env} suffix={suffix}")
+    print("[INFO] AI 质量检查已 mock，避免 fast 回归依赖真实 LLM JSON 输出")
 
-    with SessionLocal() as session:
-        router = CommandRouter(session)
-        results.append(await check_audit_status_field(session))
+    with patch.object(KnowledgeDepositCheckService, "ai_quality_check", _mock_ai_quality_pass):
+        with SessionLocal() as session:
+            router = CommandRouter(session)
+            results.append(await check_audit_status_field(session))
 
-        deposit_resp = await _deposit_pending_card(
-            router,
-            group_id=f"supp-pending-{suffix}",
-            user_id=f"supp-pending-u-{suffix}",
-            card_suffix=f"supp-{suffix}",
-        )
-        results.append(await check_pending_no_vector_sync(session, deposit_resp))
-        results.append(await check_contribution_link(session, deposit_resp))
-        session.commit()
+            deposit_resp = await _deposit_pending_card(
+                router,
+                group_id=f"supp-pending-{suffix}",
+                user_id=f"supp-pending-u-{suffix}",
+                card_suffix=f"supp-{suffix}",
+            )
+            results.append(await check_pending_no_vector_sync(session, deposit_resp))
+            results.append(await check_contribution_link(session, deposit_resp))
+            session.commit()
 
-        results.append(await check_duplicate_no_card(session, router, suffix))
-        session.commit()
+            results.append(await check_duplicate_no_card(session, router, suffix))
+            session.commit()
 
-        results.append(await check_risk_no_card(session, router, suffix))
-        session.commit()
+            results.append(await check_risk_no_card(session, router, suffix))
+            session.commit()
 
-        results.append(await check_message_id_idempotency(session, router, suffix))
-        session.commit()
+            results.append(await check_message_id_idempotency(session, router, suffix))
+            session.commit()
 
     results.append(await check_redis_session(settings))
     results.append(check_langsmith_desensitize())
