@@ -7,7 +7,11 @@ from app.models.feedback_log import FeedbackLog
 
 from app.models.knowledge_card import KnowledgeCard
 
+from app.models.knowledge_card_revision import KnowledgeCardRevision
+
 from app.models.knowledge_contribution import KnowledgeContribution
+
+from app.models.knowledge_duplicate_check_log import KnowledgeDuplicateCheckLog
 
 from app.models.llm_call_log import LlmCallLog
 from app.models.message_process_log import MessageProcessLog
@@ -38,7 +42,11 @@ __all__ = [
 
     "KnowledgeCard",
 
+    "KnowledgeCardRevision",
+
     "KnowledgeContribution",
+
+    "KnowledgeDuplicateCheckLog",
 
     "LlmCallLog",
 
@@ -57,4 +65,3 @@ __all__ = [
     "VectorSyncTask",
 
 ]
-

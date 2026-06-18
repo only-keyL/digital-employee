@@ -65,6 +65,35 @@ class FeedbackRepository(BaseRepository[FeedbackLog]):
         stmt = stmt.order_by(FeedbackLog.create_time.desc()).offset(offset).limit(limit)
         return list(self.session.execute(stmt).all())
 
+    def list_by_status(self, *, status: str, offset: int = 0, limit: int = 50) -> list[FeedbackLog]:
+        """按处理状态查询反馈记录。"""
+        stmt = (
+            select(FeedbackLog)
+            .where(FeedbackLog.status == status)
+            .order_by(FeedbackLog.create_time.desc())
+        )
+        return self.list(offset=offset, limit=limit, stmt=stmt)
+
+    def count_by_status(self, status: str) -> int:
+        """统计指定状态的反馈数量。"""
+        stmt = select(FeedbackLog).where(FeedbackLog.status == status)
+        return self.count(stmt)
+
+    def list_by_knowledge_card_id(
+        self,
+        knowledge_card_id: int,
+        *,
+        limit: int = 50,
+    ) -> list[FeedbackLog]:
+        """查询某张知识卡片的反馈记录。"""
+        stmt = (
+            select(FeedbackLog)
+            .where(FeedbackLog.knowledge_card_id == knowledge_card_id)
+            .order_by(FeedbackLog.create_time.desc())
+            .limit(limit)
+        )
+        return list(self.session.scalars(stmt).all())
+
     def top_negative_feedback(self, limit: int = 10) -> list[dict]:
         """统计「无用」反馈最多的问题摘要（看板用）。"""
         stmt = (

@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from datetime import datetime, timedelta
+
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, load_only
 
 from app.models.question_log import QuestionLog
@@ -26,6 +28,15 @@ class QuestionRepository(BaseRepository[QuestionLog]):
                     QuestionLog.intent,
                     QuestionLog.matched,
                     QuestionLog.similarity_score,
+                    QuestionLog.primary_matched_card_id,
+                    QuestionLog.primary_matched_card_title,
+                    QuestionLog.confidence_level,
+                    QuestionLog.answer_status,
+                    QuestionLog.answer_source,
+                    QuestionLog.system_name,
+                    QuestionLog.module_name,
+                    QuestionLog.used_context,
+                    QuestionLog.context_source,
                     QuestionLog.answer,
                     QuestionLog.fallback_reason,
                     QuestionLog.need_human,
@@ -62,3 +73,42 @@ class QuestionRepository(BaseRepository[QuestionLog]):
         if log is not None:
             log.langsmith_trace_id = trace_id
             self.session.flush()
+
+    def list_user_recent_modules(
+        self,
+        *,
+        user_id: str,
+        group_id: str | None,
+        days: int = 30,
+        limit: int = 3,
+    ) -> list[dict]:
+        """查询用户近 N 天常问系统/模块，供后续上下文增强使用。"""
+        since = datetime.now() - timedelta(days=days)
+        stmt = (
+            select(
+                QuestionLog.system_name,
+                QuestionLog.module_name,
+                func.count(QuestionLog.id).label("ask_count"),
+            )
+            .where(
+                QuestionLog.user_id == user_id,
+                QuestionLog.create_time >= since,
+                QuestionLog.system_name.isnot(None),
+                QuestionLog.module_name.isnot(None),
+            )
+            .group_by(QuestionLog.system_name, QuestionLog.module_name)
+            .order_by(func.count(QuestionLog.id).desc())
+            .limit(limit)
+        )
+        if group_id:
+            stmt = stmt.where(QuestionLog.group_id == group_id)
+
+        rows = self.session.execute(stmt).all()
+        return [
+            {
+                "system_name": row.system_name,
+                "module_name": row.module_name,
+                "ask_count": int(row.ask_count or 0),
+            }
+            for row in rows
+        ]

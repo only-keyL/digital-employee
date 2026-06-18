@@ -1,8 +1,9 @@
 """知识卡片 ORM 模型（表 knowledge_card）。"""
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import BigInteger, DateTime, Index, Integer, SmallInteger, String, Text, func
+from sqlalchemy import BigInteger, DateTime, Index, Integer, Numeric, SmallInteger, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.database import Base
@@ -17,6 +18,8 @@ class KnowledgeCard(Base):
         Index("idx_knowledge_vector_status", "vector_status"),
         Index("idx_knowledge_deleted", "deleted"),
         Index("idx_knowledge_system_module", "system_name", "module_name"),
+        Index("idx_knowledge_need_review", "need_review"),
+        Index("idx_knowledge_quality_score", "quality_score"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)  # 主键
@@ -44,6 +47,12 @@ class KnowledgeCard(Base):
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # 版本号
     enabled: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=1)  # 是否启用
     deleted: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)  # 逻辑删除
+    useful_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 有用反馈次数
+    useless_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 无用反馈次数
+    supplement_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 补充/纠错反馈次数
+    quality_score: Mapped[Decimal | None] = mapped_column(Numeric(6, 4))  # 知识卡片质量分
+    need_review: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)  # 是否需要复核 0/1
+    last_feedback_time: Mapped[datetime | None] = mapped_column(DateTime)  # 最近一次反馈时间
     create_user: Mapped[str | None] = mapped_column(String(100))  # 创建人
     update_user: Mapped[str | None] = mapped_column(String(100))  # 更新人
     create_time: Mapped[datetime] = mapped_column(DateTime, nullable=False, server_default=func.now())
