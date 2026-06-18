@@ -32,6 +32,7 @@ class AskGraphV2State(TypedDict, total=False):
     normalized_question: str
     source: str
     user_id: str | None
+    group_id: str | None
     retrieval: RagRetrievalResult | None
     contexts: list[Any]
     top_score: float
@@ -71,6 +72,7 @@ class AskGraphV2Runner:
         *,
         question: str,
         user_id: str | None = None,
+        group_id: str | None = None,
         source: str = "api_ask_v2",
     ) -> AskGraphV2State:
         state: AskGraphV2State = {
@@ -78,6 +80,7 @@ class AskGraphV2Runner:
             "question": question,
             "source": source,
             "user_id": user_id,
+            "group_id": group_id,
             "started_at": time.perf_counter(),
             "errors": [],
         }

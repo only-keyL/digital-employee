@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session, load_only
 
 from app.models.question_log import QuestionLog
@@ -137,3 +137,35 @@ class QuestionRepository(BaseRepository[QuestionLog]):
         log.system_name = system_name
         log.module_name = module_name
         self.session.flush()
+
+    def get_latest_feedback_target(
+        self,
+        *,
+        user_id: str,
+        group_id: str | None,
+        within_minutes: int = 30,
+    ) -> QuestionLog | None:
+        """查询用户最近一次可反馈的问答日志。"""
+        since = datetime.now() - timedelta(minutes=within_minutes)
+        feedback_statuses = (
+            "hit",
+            "medium_confidence",
+            "low_confidence",
+            "miss",
+            "llm_failed",
+            "error",
+        )
+        stmt = select(QuestionLog).where(
+            QuestionLog.user_id == user_id,
+            QuestionLog.create_time >= since,
+            QuestionLog.answer_status.in_(feedback_statuses),
+        )
+        if group_id:
+            stmt = stmt.where(QuestionLog.group_id == group_id)
+
+        # 优先绑定有关联知识卡片的问答
+        stmt = stmt.order_by(
+            case((QuestionLog.primary_matched_card_id.isnot(None), 1), else_=0).desc(),
+            QuestionLog.create_time.desc(),
+        ).limit(1)
+        return self.session.scalars(stmt).first()

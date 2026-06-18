@@ -37,6 +37,7 @@ def _steps(env_file: str) -> list[Step]:
         Step("RAG V2", "check_rag_v2.py", ef + ["--question", "客户登录失败并提示账号无权限时如何排查？"], skip_on_fast=True),
         Step("模拟企微沉淀", "check_mock_wecom_deposit.py", ef, skip_on_fast=True),
         Step("Stage4 补充", "check_stage4_supplement.py", ef),
+        Step("Stage4 反馈闭环", "check_enhance_stage4_feedback_loop.py", ef),
         Step("Stage5 后台审核", "check_stage5_admin_review.py", ef),
         Step("Stage5 审核流", "check_stage5_review_flow.py", ef, skip_on_fast=True),
         Step("Stage5 补充", "check_stage5_supplement.py", ef, skip_on_fast=True),

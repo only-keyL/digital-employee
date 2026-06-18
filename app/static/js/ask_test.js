@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const userId = (document.getElementById("user_id")?.value || "").trim() || "anonymous";
     try {
-      const response = await fetch("/api/feedback", {
+      const response = await fetch("/api/feedback/legacy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

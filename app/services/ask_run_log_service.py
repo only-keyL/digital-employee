@@ -185,7 +185,7 @@ class AskRunLogService:
             question_masked=question,
             rewritten_question=question,
             user_id=state.get("user_id") or "anonymous",
-            group_id=None,
+            group_id=state.get("group_id"),
             source_type=state.get("source") or "api_ask_v2",
             intent="question",
             matched=1 if matched else 0,

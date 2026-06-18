@@ -18,6 +18,10 @@ class FeedbackRepository(BaseRepository[FeedbackLog]):
         stmt = select(FeedbackLog).where(FeedbackLog.question_log_id == question_log_id)
         return self.session.scalars(stmt).first()
 
+    def get_by_id(self, feedback_id: int) -> FeedbackLog | None:
+        """按 ID 查询反馈记录。"""
+        return self.session.get(FeedbackLog, feedback_id)
+
     def list_feedback(
         self,
         *,

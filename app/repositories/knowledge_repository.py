@@ -1,5 +1,7 @@
 """知识卡片数据访问层。"""
 
+from datetime import datetime
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -158,4 +160,16 @@ class KnowledgeRepository(BaseRepository[KnowledgeCard]):
             return None
         if card.audit_status not in {"approved", "pending"}:
             return None
+        return card
+
+    def update_feedback_stats(self, card: KnowledgeCard, *, feedback_type: str) -> KnowledgeCard:
+        """更新知识卡片反馈计数与最近反馈时间。"""
+        if feedback_type == "useful":
+            card.useful_count = int(card.useful_count or 0) + 1
+        elif feedback_type == "useless":
+            card.useless_count = int(card.useless_count or 0) + 1
+        elif feedback_type == "supplement":
+            card.supplement_count = int(card.supplement_count or 0) + 1
+        card.last_feedback_time = datetime.now()
+        self.session.flush()
         return card

@@ -15,6 +15,7 @@ from app.infra.redis_client import RedisClientError
 from app.schemas.mock_wecom_schema import MockWeComResponse
 from app.schemas.wecom_message_schema import WeComMessage
 from app.services.deposit_session_service import DepositSessionService
+from app.services.feedback_evolution_service import FeedbackEvolutionError, FeedbackEvolutionService
 from app.wecom.command_detector import CommandDetector, CommandType
 from app.wecom.knowledge_template import (
     DEPOSIT_CANCEL_REPLY,
@@ -71,6 +72,11 @@ class CommandRouter:
             return await self._handle_deposit_cancel(message)
         if command == CommandType.KNOWLEDGE_SUBMIT:
             return await self._handle_knowledge_submit(message)
+
+        # 反馈指令优先于普通 RAG 问答，避免「有用」「无用」进入检索链路
+        if FeedbackEvolutionService.is_feedback_text(message.content or ""):
+            return await self._handle_feedback(message)
+
         return await self._handle_normal_question(message)
 
     async def _handle_deposit_start(self, message: WeComMessage) -> MockWeComResponse:
@@ -140,10 +146,36 @@ class CommandRouter:
             status=state.get("status"),
         )
 
+    async def _handle_feedback(self, message: WeComMessage) -> MockWeComResponse:
+        """处理文本反馈：有用 / 无用 / 补充。"""
+        svc = FeedbackEvolutionService(self.session)
+        try:
+            result = svc.submit_text_feedback(
+                text=message.content or "",
+                user_id=message.user_id or "anonymous",
+                group_id=message.group_id,
+            )
+            return MockWeComResponse(
+                message_id=message.message_id,
+                reply=result.message,
+                command="feedback",
+                session_active=False,
+                status=result.feedback_type,
+            )
+        except FeedbackEvolutionError as exc:
+            return MockWeComResponse(
+                message_id=message.message_id,
+                reply=exc.message,
+                command="feedback",
+                session_active=False,
+                status="feedback_failed",
+            )
+
     async def _handle_normal_question(self, message: WeComMessage) -> MockWeComResponse:
         state = await self.ask_runner.run(
             question=message.content,
             user_id=message.user_id,
+            group_id=message.group_id,
             source="mock_wecom",
         )
         return MockWeComResponse(
