@@ -1,4 +1,6 @@
 .env
+docs/prod/.env
+docs/prod/*.env
 .venv/
 venv/
 __pycache__/

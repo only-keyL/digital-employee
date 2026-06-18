@@ -38,6 +38,7 @@ from app.routers.ask_router import router as ask_router
 from app.routers.knowledge_router import router as knowledge_router
 from app.routers.page_router import router as page_router
 from app.routers.feedback_router import router as feedback_router
+from app.routers.infra_router import router as infra_router
 from app.routers.statistics_router import router as statistics_router
 from app.routers.unanswered_router import router as unanswered_router
 from app.routers.wecom_router import router as wecom_router
@@ -89,6 +90,9 @@ def create_app() -> FastAPI:
 
     # 注册通用 API：例如 /api/health。
     app.include_router(api_router)
+
+    # 注册基础设施健康检查 API：/api/infra/health。
+    app.include_router(infra_router)
 
     # 注册问答 API：例如 POST /api/ask。
     app.include_router(ask_router)

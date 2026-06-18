@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -261,8 +262,17 @@ def load_settings_from_env_file(
     app_env: str | None = None,
     **overrides: Any,
 ) -> Settings:
-    """从指定 env 文件加载配置，可选覆盖 APP_ENV 与其他字段。"""
-    settings_cls = _build_settings_class(env_file)
+    """从指定 env 文件加载配置；仅读取指定文件，不合并项目根 .env。"""
+    from dotenv import dotenv_values
+
+    path = Path(env_file)
+    if not path.is_file():
+        raise FileNotFoundError(f"配置文件不存在：{env_file}")
+
+    # 先用 dotenv 校验解析，再交给 pydantic-settings 按字段别名映射
+    dotenv_values(path)
+
+    settings_cls = _build_settings_class(str(path))
     payload: dict[str, Any] = dict(overrides)
     if app_env is not None:
         payload["app_env"] = app_env
