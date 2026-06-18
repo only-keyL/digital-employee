@@ -72,12 +72,23 @@ class Settings(BaseSettings):
     llm_max_retries: int = Field(default=2, description="LLM 请求最大重试次数")
     llm_temperature: float = Field(default=0.2, description="LLM 采样温度")
 
-    # --- Embedding（MVP 既有字段，保持兼容）---
+    # --- Embedding（MVP 既有字段 + Stage3 扩展）---
     embedding_provider: str = Field(default="fastembed", description="Embedding 提供方")
     embedding_model: str = Field(default="BAAI/bge-small-zh-v1.5", description="Embedding 模型")
-    embedding_dimension: int = Field(default=512, description="Embedding 向量维度")
-    embedding_base_url: str = Field(default="", description="Embedding API 地址")
+    embedding_dimension: int = Field(
+        default=512,
+        validation_alias=AliasChoices("EMBEDDING_DIMENSION", "EMBEDDING_VECTOR_SIZE"),
+        description="Embedding 向量维度",
+    )
+    embedding_base_url: str = Field(
+        default="",
+        validation_alias=AliasChoices("EMBEDDING_BASE_URL",),
+        description="Embedding API 地址",
+    )
     embedding_api_key: str = Field(default="", description="Embedding API Key")
+    embedding_timeout_seconds: int = Field(default=15, description="Embedding 请求超时（秒）")
+    embedding_max_retries: int = Field(default=2, description="Embedding 最大重试次数")
+    rag_high_confidence_threshold: float = Field(default=0.78, description="RAG 高置信度阈值")
 
     # --- Qdrant / 向量检索（本阶段仅配置字段）---
     vector_provider: str = Field(default="qdrant", description="向量库提供方")
@@ -87,6 +98,11 @@ class Settings(BaseSettings):
     qdrant_url: str = Field(default="", description="远程 Qdrant 服务地址")
     qdrant_api_key: str = Field(default="", description="Qdrant API Key")
     qdrant_collection: str = Field(default="knowledge_cards", description="Qdrant 集合名称")
+    qdrant_rag_collection: str = Field(
+        default="",
+        validation_alias=AliasChoices("QDRANT_RAG_COLLECTION"),
+        description="Stage3 RAG 专用 collection（为空则使用 {qdrant_collection}_rag）",
+    )
     qdrant_distance: str = Field(default="COSINE", description="向量距离度量")
     qdrant_timeout_seconds: int = Field(default=5, description="Qdrant 请求超时（秒）")
     top_k: int = Field(
@@ -200,6 +216,15 @@ class Settings(BaseSettings):
         return self.embedding_provider == "mock"
 
     @property
+    def effective_qdrant_rag_collection(self) -> str:
+        """Stage3 RAG 使用的 Qdrant collection，与阶段 2 探测 collection 隔离。"""
+        name = (self.qdrant_rag_collection or "").strip()
+        if name:
+            return name
+        base = (self.qdrant_collection or "knowledge_cards").strip()
+        return f"{base}_rag"
+
+    @property
     def effective_mysql_user(self) -> str:
         """从 DATABASE_URL 或拆分配置解析实际数据库用户名，供 prod 校验使用。"""
         if self.database_url_override:
@@ -277,6 +302,18 @@ def load_settings_from_env_file(
     if app_env is not None:
         payload["app_env"] = app_env
     return settings_cls(**payload)
+
+
+def apply_env_file(env_file: str) -> Settings:
+    """将 env 文件加载到进程环境并刷新全局 Settings 缓存（供 prod 脚本使用）。"""
+    from dotenv import load_dotenv
+
+    path = Path(env_file)
+    if not path.is_file():
+        raise FileNotFoundError(f"配置文件不存在：{env_file}")
+    load_dotenv(path, override=True)
+    get_settings.cache_clear()
+    return get_settings()
 
 
 @lru_cache

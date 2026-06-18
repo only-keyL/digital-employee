@@ -35,10 +35,12 @@ from app.core.runtime_check import run_runtime_check
 # - wecom_router：企业微信回调。
 from app.routers.api_router import router as api_router
 from app.routers.ask_router import router as ask_router
+from app.routers.ask_v2_router import router as ask_v2_router
 from app.routers.knowledge_router import router as knowledge_router
 from app.routers.page_router import router as page_router
 from app.routers.feedback_router import router as feedback_router
 from app.routers.infra_router import router as infra_router
+from app.routers.mock_wecom_router import router as mock_wecom_router
 from app.routers.statistics_router import router as statistics_router
 from app.routers.unanswered_router import router as unanswered_router
 from app.routers.wecom_router import router as wecom_router
@@ -96,6 +98,12 @@ def create_app() -> FastAPI:
 
     # 注册问答 API：例如 POST /api/ask。
     app.include_router(ask_router)
+
+    # 注册 Stage3 RAG 问答 API：/api/ask-v2、/api/mock/ask-v2。
+    app.include_router(ask_v2_router)
+
+    # 注册 Stage4 模拟企微入口：/api/mock/wecom/message。
+    app.include_router(mock_wecom_router)
 
     # 注册知识卡片相关 API / 页面操作。
     app.include_router(knowledge_router)

@@ -12,12 +12,17 @@ if str(ROOT) not in sys.path:
 from app.config.settings import settings
 from app.db.database import Base, SessionLocal, engine
 from app.models import (  # noqa: F401 — register models with Base.metadata
+    AskRun,
     FeedbackLog,
+    KnowledgeContribution,
     KnowledgeCard,
+    LlmCallLog,
     QuestionLog,
+    RetrievalLog,
     SystemConfig,
     Tag,
     UnansweredQuestion,
+    VectorSyncTask,
 )
 from app.repositories.system_config_repository import SystemConfigRepository
 

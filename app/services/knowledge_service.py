@@ -1,4 +1,5 @@
 from datetime import datetime
+import logging
 from typing import Any
 
 from sqlalchemy.orm import Session
@@ -7,9 +8,9 @@ from app.models.knowledge_card import KnowledgeCard
 from app.repositories.knowledge_repository import KnowledgeRepository
 from app.schemas.knowledge_schema import KnowledgeAuditRequest, KnowledgeCreate, KnowledgeUpdate
 from app.services.knowledge_content import card_to_content_dict, compute_content_hash
-from app.services.vector_sync_service import VectorSyncService
 
 DEFAULT_OPERATOR = "admin"
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeServiceError(Exception):
@@ -80,10 +81,14 @@ class KnowledgeService:
         }
 
     def _apply_vector_sync(self, card_id: int) -> None:
+        """审核通过后异步入队向量同步，不阻塞接口。"""
         try:
-            VectorSyncService(self.session).sync_card(card_id)
+            from app.services.stage3_vector_sync_service import Stage3VectorSyncService
+
+            Stage3VectorSyncService(self.session).enqueue_for_card(card_id)
             self.repo.save()
         except Exception:
+            logger.exception("入队向量同步任务失败 card_id=%s", card_id)
             self.repo.save()
 
     def list_for_page(self, *, page: int = 1, page_size: int = 20) -> dict:
