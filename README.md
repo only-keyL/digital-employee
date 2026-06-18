@@ -1,5 +1,43 @@
 ﻿# 企业微信数字员工助手（digital-employee-assistant）
 
+## 生产 V1 · 二期优化（阶段 1～7 已完成）
+
+二期在 MVP 基础上完成：配置护栏、AI 基础设施、RAG 问答（AskGraphV2）、模拟企微沉淀、后台审核治理、幂等/鉴权/审计/安全扫描与**交付文档体系**。
+
+- **交付文档入口**：[docs/生产V1交付文档/00_文档总览.md](docs/生产V1交付文档/00_文档总览.md)
+- **本地默认地址**：`http://127.0.0.1:8001`（`.env` 中 `APP_PORT=8001`）
+- **当前边界**：真实企业微信回调**尚未接入**，请使用 `/api/mock/wecom/message` 模拟入口
+
+### 二期快速启动
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python app/db/init_db.py
+python scripts/prod/init_stage3_tables.py --env-file ".env"
+python scripts/prod/init_stage4_tables.py --env-file ".env"
+python scripts/prod/init_stage6_tables.py --env-file ".env"
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
+```
+
+### 二期一键回归
+
+```powershell
+# 快速回归（跳过耗时 LLM/RAG 调用）
+python scripts/prod/run_all_regression_checks.py --env-file "docs/prod/.env" --fast
+
+# 完整回归
+python scripts/prod/run_all_regression_checks.py --env-file "docs/prod/.env"
+
+# 交付文档检查
+python scripts/prod/check_stage7_docs.py
+```
+
+> 本地真实配置使用 `docs/prod/.env`，**禁止提交 Git**。
+
+---
+
 ## MVP 已交付
 
 面向企业微信实施群的知识沉淀型数字员工 **Demo / MVP**。阶段一至十一已全部完成，具备可演示、可脚本验收的完整业务闭环（问答 → 沉淀 → 反馈 → 统计）。
@@ -10,9 +48,20 @@
 
 ## 文档索引
 
+### 生产 V1 交付文档（二期，推荐）
+
 | 文档 | 说明 |
 |------|------|
-| [docs/mvpdocs/MVP交付说明.md](docs/mvpdocs/MVP交付说明.md) | **交付总览**（能力、边界、验收、backlog） |
+| [docs/生产V1交付文档/00_文档总览.md](docs/生产V1交付文档/00_文档总览.md) | **交付文档总览**（启动、运维、演示、面试） |
+| [docs/生产V1交付文档/08_本地启动指南.md](docs/生产V1交付文档/08_本地启动指南.md) | 本地启动 |
+| [docs/生产V1交付文档/10_运维与回归验收指南.md](docs/生产V1交付文档/10_运维与回归验收指南.md) | 运维与回归 |
+| [docs/生产V1交付文档/15_最终验收清单.md](docs/生产V1交付文档/15_最终验收清单.md) | 最终验收清单 |
+
+### MVP 历史文档
+
+| 文档 | 说明 |
+|------|------|
+| [docs/mvpdocs/MVP交付说明.md](docs/mvpdocs/MVP交付说明.md) | **MVP 交付总览** |
 | [docs/mvpdocs/新人快速上手指南.md](docs/mvpdocs/新人快速上手指南.md) | **新人入口**（功能边界、业务流程、启动、架构、推荐阅读） |
 | [docs/mvpdocs/本地启动说明.md](docs/mvpdocs/本地启动说明.md) | **本地启动**（环境、seed、Qdrant、uvicorn） |
 | [docs/mvpdocs/演示脚本.md](docs/mvpdocs/演示脚本.md) | **演示脚本**（领导版 15min / 技术版 25min） |
