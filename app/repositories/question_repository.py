@@ -112,3 +112,28 @@ class QuestionRepository(BaseRepository[QuestionLog]):
             }
             for row in rows
         ]
+
+    def update_trusted_answer_fields(
+        self,
+        log_id: int,
+        *,
+        primary_matched_card_id: int | None,
+        primary_matched_card_title: str | None,
+        confidence_level: str,
+        answer_status: str,
+        answer_source: str | None,
+        system_name: str | None,
+        module_name: str | None,
+    ) -> None:
+        """回填可信回答相关字段。"""
+        log = self.session.get(QuestionLog, log_id)
+        if log is None:
+            return
+        log.primary_matched_card_id = primary_matched_card_id
+        log.primary_matched_card_title = primary_matched_card_title
+        log.confidence_level = confidence_level
+        log.answer_status = answer_status
+        log.answer_source = answer_source
+        log.system_name = system_name
+        log.module_name = module_name
+        self.session.flush()

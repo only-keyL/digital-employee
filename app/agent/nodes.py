@@ -41,7 +41,6 @@ from app.agent.ask_state import AskState
 # 这些文本集中放在 constants.py，避免散落在多个节点里。
 from app.agent.constants import (
     EMPTY_QUESTION_REASON,
-    FALLBACK_ANSWER,
     RETRIEVAL_ERROR_ANSWER,
     RETRIEVAL_ERROR_REASON,
 )
@@ -56,6 +55,9 @@ from app.repositories.knowledge_repository import KnowledgeRepository
 from app.services.answer_generation_service import AnswerGenerationService
 from app.services.ask_log_service import AskLogService
 from app.services.retrieval_service import RetrievalHit, RetrievalService
+from app.services.trusted_answer_service import TrustedAnswerService
+
+_trusted_answer_service = TrustedAnswerService()
 
 
 def _get_db_session(config: RunnableConfig) -> Session:
@@ -230,15 +232,20 @@ def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
     retrieval_time_ms = int((time.perf_counter() - retrieval_started) * 1000)
 
     if retrieval.error is not None:
-        # 检索服务异常，比如 Qdrant 不可用、向量库访问失败。
-        # 这和“没找到答案”不是一回事：
-        # - 检索异常：系统故障；
-        # - 未命中：系统正常，但知识库没有覆盖。
+        log_patch = _trusted_answer_service.build_log_patch(
+            confidence_level="none",
+            matched=False,
+            primary_source=None,
+            retrieval_error=True,
+        )
         return {
             "retrieval_error": True,
             "retrieval_time_ms": retrieval_time_ms,
             "matched": False,
             "similarity_score": 0.0,
+            "confidence_level": log_patch.confidence_level,
+            "answer_status": log_patch.answer_status,
+            "answer_source": log_patch.answer_source,
             "sources": [],
             "retrieval_hits": [],
             "matched_card_ids": "",
@@ -247,21 +254,34 @@ def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
             "route": "error",
         }
 
-    # 将 RetrievalHit 对象转换为普通 dict。
-    # 这样 state 里只保存轻量数据，不直接塞 ORM 对象。
+    # 将 RetrievalHit 对象转换为普通 dict，附带系统/模块供可信回答使用。
     hits_dicts = [
-        {"card_id": hit.card.id, "title": hit.title, "score": hit.score}
+        {
+            "card_id": hit.card.id,
+            "title": hit.title,
+            "score": hit.score,
+            "system_name": hit.card.system_name,
+            "module_name": hit.card.module_name,
+        }
         for hit in retrieval.hits
     ]
+    confidence_level = retrieval.confidence_level or "none"
+    primary = _trusted_answer_service.get_primary_source(
+        hit_dicts=hits_dicts,
+        score=float(retrieval.similarity_score or 0.0),
+        confidence_level=confidence_level,
+    )
     return {
         "retrieval_error": False,
         "retrieval_time_ms": retrieval_time_ms,
-
-        # 下面这些 `_raw_` 字段是检索服务的原始判断结果。
-        # 前缀 `_raw_` 表示它们是中间字段，下一步 match_judge_node 会再整理成对外字段。
         "_raw_matched": retrieval.matched,
         "_raw_fallback_reason": retrieval.fallback_reason,
         "_raw_similarity_score": retrieval.similarity_score,
+        "confidence_level": confidence_level,
+        "primary_matched_card_id": primary.card_id if primary else None,
+        "primary_matched_card_title": primary.title if primary else None,
+        "system_name": primary.system_name if primary else None,
+        "module_name": primary.module_name if primary else None,
         "retrieval_hits": hits_dicts,
         "route": "ok",
     }
@@ -289,34 +309,57 @@ def match_judge_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
     similarity_score = float(state.get("_raw_similarity_score") or 0.0)
     fallback_reason = state.get("_raw_fallback_reason")
     hits = state.get("retrieval_hits") or []
+    confidence_level = state.get("confidence_level") or "none"
+    primary = _trusted_answer_service.get_primary_source(
+        hit_dicts=hits,
+        score=similarity_score,
+        confidence_level=confidence_level,
+    )
 
     if matched:
-        # sources 是最终 AskResponse 会返回给前端/调用方的“答案来源”列表。
-        # 只保留 card_id/title/score 这些对外展示需要的字段。
         sources = [
             {"card_id": int(h["card_id"]), "title": h.get("title") or "", "score": float(h.get("score") or 0.0)}
             for h in hits
         ]
-
-        # matched_card_ids 是写 question_log 用的字符串，例如 "1,3,5"。
-        # ",".join(...) 表示把多个字符串用英文逗号拼起来。
         matched_card_ids = ",".join(str(h["card_id"]) for h in hits)
+        log_patch = _trusted_answer_service.build_log_patch(
+            confidence_level=confidence_level,
+            matched=True,
+            primary_source=primary,
+        )
         return {
             "matched": True,
             "sources": sources,
             "matched_card_ids": matched_card_ids,
             "similarity_score": similarity_score,
+            "confidence_level": log_patch.confidence_level,
+            "primary_matched_card_id": log_patch.primary_matched_card_id,
+            "primary_matched_card_title": log_patch.primary_matched_card_title,
+            "answer_status": log_patch.answer_status,
+            "answer_source": log_patch.answer_source,
+            "system_name": log_patch.system_name,
+            "module_name": log_patch.module_name,
             "fallback_reason": None,
             "route": "matched",
         }
 
-    # 未命中：没有 sources，也没有 matched_card_ids。
-    # fallback_reason 如果为空，就给一个默认的“向量检索未命中”。
+    log_patch = _trusted_answer_service.build_log_patch(
+        confidence_level=confidence_level,
+        matched=False,
+        primary_source=primary,
+    )
     return {
         "matched": False,
         "sources": [],
         "matched_card_ids": "",
         "similarity_score": similarity_score,
+        "confidence_level": log_patch.confidence_level,
+        "primary_matched_card_id": log_patch.primary_matched_card_id,
+        "primary_matched_card_title": log_patch.primary_matched_card_title,
+        "answer_status": log_patch.answer_status,
+        "answer_source": log_patch.answer_source,
+        "system_name": log_patch.system_name,
+        "module_name": log_patch.module_name,
         "fallback_reason": fallback_reason or "向量检索未命中",
         "route": "miss",
     }
@@ -347,17 +390,46 @@ def generate_answer_node(state: AskState, config: RunnableConfig) -> dict[str, A
     # retrieval_hits 在 state 里只是轻量 dict。
     # 生成答案前，需要重新查 MySQL，恢复成带完整 KnowledgeCard 的 RetrievalHit。
     hits = _hits_from_state(state, session)
+    confidence_level = state.get("confidence_level") or "none"
+    primary = _trusted_answer_service.get_primary_source(hits=hits, confidence_level=confidence_level)
 
-    # AnswerGenerationService 内部会拼知识上下文，并调用 MockLLM 或 DeepSeek。
     generated = AnswerGenerationService().generate(question=question_masked, hits=hits)
 
-    # 返回值会合并回 state，后续 write_log_node 会把这些字段写入 question_log。
+    if generated.error_stage:
+        log_patch = _trusted_answer_service.build_log_patch(
+            confidence_level=confidence_level,
+            matched=True,
+            primary_source=primary,
+            llm_failed=True,
+        )
+        return {
+            "answer": generated.answer,
+            "llm_tokens": generated.llm_tokens,
+            "answer_time_ms": generated.answer_time_ms,
+            "fallback_reason": generated.fallback_reason,
+            "need_human": True,
+            "risk_level": generated.risk_level,
+            "error_stage": generated.error_stage,
+            "error_message": generated.error_message,
+            "confidence_level": log_patch.confidence_level,
+            "answer_status": log_patch.answer_status,
+            "answer_source": log_patch.answer_source,
+        }
+
+    trusted_answer = _trusted_answer_service.build_trusted_answer(
+        raw_answer=generated.answer,
+        confidence_level=confidence_level,
+        primary_source=primary,
+        matched=True,
+    )
+    need_human = confidence_level == "medium" or generated.need_human
+
     return {
-        "answer": generated.answer,
+        "answer": trusted_answer,
         "llm_tokens": generated.llm_tokens,
         "answer_time_ms": generated.answer_time_ms,
         "fallback_reason": generated.fallback_reason,
-        "need_human": generated.need_human,
+        "need_human": need_human,
         "risk_level": generated.risk_level,
         "error_stage": generated.error_stage,
         "error_message": generated.error_message,
@@ -372,8 +444,14 @@ def handle_miss_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
     MVP 的策略是：保守回复 + 记录未命中问题，后续由人工沉淀知识卡片。
     """
 
+    trusted_answer = _trusted_answer_service.build_trusted_answer(
+        raw_answer="",
+        confidence_level=state.get("confidence_level") or "low",
+        primary_source=None,
+        matched=False,
+    )
     return {
-        "answer": FALLBACK_ANSWER,
+        "answer": trusted_answer,
         "need_human": False,
         "risk_level": "low",
         "llm_tokens": None,
@@ -399,12 +477,21 @@ def error_fallback_node(state: AskState, config: RunnableConfig) -> dict[str, An
     - risk_level="medium"，表示风险比普通未命中更高。
     """
 
+    log_patch = _trusted_answer_service.build_log_patch(
+        confidence_level="none",
+        matched=False,
+        primary_source=None,
+        retrieval_error=True,
+    )
     return {
         "answer": RETRIEVAL_ERROR_ANSWER,
         "matched": False,
         "sources": [],
         "matched_card_ids": "",
         "similarity_score": 0.0,
+        "confidence_level": log_patch.confidence_level,
+        "answer_status": log_patch.answer_status,
+        "answer_source": log_patch.answer_source,
         "fallback_reason": RETRIEVAL_ERROR_REASON,
         "need_human": True,
         "risk_level": "medium",

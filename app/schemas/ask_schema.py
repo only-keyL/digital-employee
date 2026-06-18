@@ -31,3 +31,6 @@ class AskResponse(BaseModel):
     fallback_reason: str | None = Field(default=None, description="未命中或异常原因")
     need_human: bool = Field(default=False, description="是否建议人工处理")
     risk_level: str = Field(default="low", description="风险等级")
+    confidence_level: str | None = Field(default=None, description="置信度等级：high/medium/low/none")
+    answer_status: str | None = Field(default=None, description="回答状态")
+    answer_source: str | None = Field(default=None, description="回答来源")

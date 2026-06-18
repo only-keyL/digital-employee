@@ -25,6 +25,13 @@ class AskState(TypedDict, total=False):
     # --- 检索（对外响应 + 内部） ---
     matched: bool  # 是否命中知识库
     similarity_score: float  # 最高相似度分数
+    confidence_level: str  # 置信度等级：high / medium / low / none
+    primary_matched_card_id: int | None  # top1 命中知识卡片 ID
+    primary_matched_card_title: str | None  # top1 命中卡片标题
+    answer_status: str  # 回答状态：hit / medium_confidence / low_confidence / miss 等
+    answer_source: str | None  # 回答来源：qdrant_rag / unanswered / llm_fallback 等
+    system_name: str | None  # 问题归属系统
+    module_name: str | None  # 问题归属模块
     sources: list[dict[str, Any]]  # 返回前端的来源列表
     matched_card_ids: str  # 命中的卡片 ID，逗号分隔
     retrieval_hits: list[dict[str, Any]]  # 检索 hit 明细（含 card_id/title/score）

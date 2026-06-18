@@ -16,8 +16,11 @@ from app.core.desensitize import sanitize_text
 from app.rag.rag_retrieval_service import RagRetrievalResult, RagRetrievalService
 from app.services.ask_run_log_service import AskRunLogService
 from app.services.rag_answer_service import RagAnswerService
+from app.services.trusted_answer_service import TrustedAnswerService
 
 logger = logging.getLogger(__name__)
+
+_trusted_answer_service = TrustedAnswerService()
 
 _LOW_CONFIDENCE_ANSWER = "当前知识库没有足够依据，已记录为未命中问题。"
 _LLM_FALLBACK_ANSWER = "当前模型服务暂时不可用，已记录问题，请稍后重试或联系管理员。"
@@ -33,6 +36,12 @@ class AskGraphV2State(TypedDict, total=False):
     contexts: list[Any]
     top_score: float
     confidence_level: str
+    primary_matched_card_id: int | None
+    primary_matched_card_title: str | None
+    system_name: str | None
+    module_name: str | None
+    answer_status: str
+    answer_source: str | None
     answer: str
     status: str
     fallback_reason: str | None
@@ -182,6 +191,19 @@ async def retrieve_knowledge(state: AskGraphV2State, config) -> AskGraphV2State:
     state["contexts"] = retrieval.contexts
     state["top_score"] = retrieval.top_score
     state["confidence_level"] = retrieval.confidence_level
+
+    # 从 top1 上下文提取来源信息，供可信回答与 question_log 回填
+    primary = _trusted_answer_service.get_primary_source_from_context(
+        retrieval.contexts[0] if retrieval.contexts else None,
+        score=retrieval.top_score,
+        confidence_level=retrieval.confidence_level,
+    )
+    if primary:
+        state["primary_matched_card_id"] = primary.card_id
+        state["primary_matched_card_title"] = primary.title
+        state["system_name"] = primary.system_name
+        state["module_name"] = primary.module_name
+
     runner.log_service.save_retrieval_logs(state["run_id"], retrieval)
     return state
 
@@ -228,9 +250,39 @@ async def generate_answer(state: AskGraphV2State, config) -> AskGraphV2State:
         state["status"] = "llm_failed"
         state["fallback_reason"] = "llm_failed"
         state["answer"] = result.answer
+        log_patch = _trusted_answer_service.build_log_patch(
+            confidence_level=state.get("confidence_level") or "none",
+            matched=True,
+            primary_source=_trusted_answer_service.get_primary_source_from_context(
+                (state.get("contexts") or [None])[0],
+                score=float(state.get("top_score") or 0.0),
+                confidence_level=state.get("confidence_level"),
+            ),
+            llm_failed=True,
+        )
+        state["answer_status"] = log_patch.answer_status
+        state["answer_source"] = log_patch.answer_source
         return state
     state["status"] = "success"
-    state["answer"] = result.answer
+    raw_answer = result.answer
+    primary = _trusted_answer_service.get_primary_source_from_context(
+        (state.get("contexts") or [None])[0],
+        score=float(state.get("top_score") or 0.0),
+        confidence_level=state.get("confidence_level"),
+    )
+    state["answer"] = _trusted_answer_service.build_trusted_answer(
+        raw_answer=raw_answer,
+        confidence_level=state.get("confidence_level") or "none",
+        primary_source=primary,
+        matched=True,
+    )
+    log_patch = _trusted_answer_service.build_log_patch(
+        confidence_level=state.get("confidence_level") or "none",
+        matched=True,
+        primary_source=primary,
+    )
+    state["answer_status"] = log_patch.answer_status
+    state["answer_source"] = log_patch.answer_source
     return state
 
 
@@ -250,9 +302,39 @@ async def risk_check(state: AskGraphV2State, config) -> AskGraphV2State:
 async def fallback_answer(state: AskGraphV2State, config) -> AskGraphV2State:
     if state.get("status") == "llm_failed":
         state["answer"] = state.get("answer") or _LLM_FALLBACK_ANSWER
+        if not state.get("answer_status"):
+            log_patch = _trusted_answer_service.build_log_patch(
+                confidence_level=state.get("confidence_level") or "none",
+                matched=False,
+                primary_source=_trusted_answer_service.get_primary_source_from_context(
+                    (state.get("contexts") or [None])[0],
+                    score=float(state.get("top_score") or 0.0),
+                    confidence_level=state.get("confidence_level"),
+                ),
+                llm_failed=True,
+            )
+            state["answer_status"] = log_patch.answer_status
+            state["answer_source"] = log_patch.answer_source
         return state
     state["status"] = "low_confidence"
-    state["answer"] = _LOW_CONFIDENCE_ANSWER
+    # 低置信度不强答，不展示虚假来源
+    state["answer"] = _trusted_answer_service.build_trusted_answer(
+        raw_answer="",
+        confidence_level=state.get("confidence_level") or "low",
+        primary_source=None,
+        matched=False,
+    )
+    log_patch = _trusted_answer_service.build_log_patch(
+        confidence_level=state.get("confidence_level") or "low",
+        matched=False,
+        primary_source=_trusted_answer_service.get_primary_source_from_context(
+            (state.get("contexts") or [None])[0],
+            score=float(state.get("top_score") or 0.0),
+            confidence_level=state.get("confidence_level"),
+        ),
+    )
+    state["answer_status"] = log_patch.answer_status
+    state["answer_source"] = log_patch.answer_source
     if not state.get("fallback_reason"):
         state["fallback_reason"] = "retrieval_score_below_threshold"
     return state
@@ -273,6 +355,12 @@ async def persist_logs(state: AskGraphV2State, config) -> AskGraphV2State:
         confidence_level=state.get("confidence_level") or "none",
         top_score=state.get("top_score"),
         fallback_reason=state.get("fallback_reason"),
+        latency_ms=latency_ms,
+        write_unanswered=write_unanswered,
+    )
+    # 同步写入 question_log，支撑可信回答字段与后续反馈闭环
+    runner.log_service.create_question_log_from_v2_state(
+        state,
         latency_ms=latency_ms,
         write_unanswered=write_unanswered,
     )

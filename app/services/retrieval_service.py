@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.models.knowledge_card import KnowledgeCard
+from app.rag.confidence import classify_confidence
 from app.rag.embedding_service import EmbeddingService, get_embedding_service
 from app.rag.qdrant_store import QdrantSearchHit, QdrantStore, get_qdrant_store
 from app.repositories.knowledge_repository import KnowledgeRepository
@@ -26,7 +27,8 @@ class RetrievalHit:
 class RetrievalResult:
     """RetrievalService.retrieve 的返回结构。"""
 
-    matched: bool  # 是否达到阈值命中
+    matched: bool  # 是否达到阈值命中（high / medium）
+    confidence_level: str  # 置信度等级：high / medium / low / none
     similarity_score: float  # 最高相似度
     best_hit: RetrievalHit | None = None  # 最佳命中
     hits: list[RetrievalHit] = field(default_factory=list)  # 有效 hit 列表
@@ -60,6 +62,7 @@ class RetrievalService:
         except Exception as exc:
             return RetrievalResult(
                 matched=False,
+                confidence_level="none",
                 similarity_score=0.0,
                 fallback_reason="向量检索异常",
                 error=str(exc),
@@ -68,6 +71,7 @@ class RetrievalService:
         if not raw_hits:
             return RetrievalResult(
                 matched=False,
+                confidence_level="low",
                 similarity_score=0.0,
                 fallback_reason="向量检索未命中",
             )
@@ -77,14 +81,19 @@ class RetrievalService:
         if not valid_hits:
             return RetrievalResult(
                 matched=False,
+                confidence_level="low",
                 similarity_score=best_score,
                 fallback_reason="向量检索未命中",
             )
 
         best_hit = valid_hits[0]
-        if best_hit.score < self.threshold:
+        confidence_level = classify_confidence(best_hit.score)
+        # 高 / 中置信度才进入生成答案分支，低置信度不强答
+        matched = confidence_level in {"high", "medium"}
+        if not matched:
             return RetrievalResult(
                 matched=False,
+                confidence_level=confidence_level,
                 similarity_score=best_hit.score,
                 best_hit=best_hit,
                 hits=valid_hits[: self.MAX_SOURCES],
@@ -93,6 +102,7 @@ class RetrievalService:
 
         return RetrievalResult(
             matched=True,
+            confidence_level=confidence_level,
             similarity_score=best_hit.score,
             best_hit=best_hit,
             hits=valid_hits[: self.MAX_SOURCES],
