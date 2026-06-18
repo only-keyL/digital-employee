@@ -1,0 +1,117 @@
+{% extends "layout.html" %}
+
+{% block title %}投稿详情 - 数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+    <a href="/admin/contributions" class="btn btn-outline-secondary btn-sm mb-2">← 返回列表</a>
+    <h2 class="h4 mb-0">投稿详情</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h3 class="h6">基本信息</h3>
+            <dl class="row small mb-0">
+                <dt class="col-sm-4">contribution_id</dt>
+                <dd class="col-sm-8"><code>{{ detail.contribution_id }}</code></dd>
+                <dt class="col-sm-4">来源</dt>
+                <dd class="col-sm-8">{{ detail.source }}</dd>
+                <dt class="col-sm-4">用户</dt>
+                <dd class="col-sm-8">{{ detail.user_name or detail.user_id }}</dd>
+                <dt class="col-sm-4">群ID</dt>
+                <dd class="col-sm-8">{{ detail.group_id or '-' }}</dd>
+                <dt class="col-sm-4">状态</dt>
+                <dd class="col-sm-8"><span class="badge text-bg-secondary">{{ detail.status }}</span></dd>
+                <dt class="col-sm-4">风险等级</dt>
+                <dd class="col-sm-8">{{ detail.risk_level or 'none' }}</dd>
+                <dt class="col-sm-4">重复疑似</dt>
+                <dd class="col-sm-8">{% if detail.duplicate_suspected %}是{% else %}否{% endif %}</dd>
+                <dt class="col-sm-4">关联卡片</dt>
+                <dd class="col-sm-8">
+                    {% if detail.knowledge_card_id %}
+                    <a href="/admin/knowledge/{{ detail.knowledge_card_id }}">{{ detail.knowledge_card_id }}</a>
+                    {% else %}-{% endif %}
+                </dd>
+                <dt class="col-sm-4">正文预览</dt>
+                <dd class="col-sm-8 text-muted">{{ detail.content_preview or '-' }}</dd>
+                <dt class="col-sm-4">创建时间</dt>
+                <dd class="col-sm-8">{{ detail.created_at }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h3 class="h6">解析字段</h3>
+            {% if detail.parsed_card %}
+            <dl class="row small mb-0">
+                {% for key, value in detail.parsed_card.items() %}
+                <dt class="col-sm-4">{{ key }}</dt>
+                <dd class="col-sm-8">{{ value or '-' }}</dd>
+                {% endfor %}
+            </dl>
+            {% else %}
+            <p class="text-muted small mb-0">无解析结果</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h3 class="h6">缺失字段</h3>
+            {% if detail.missing_fields %}
+            <ul class="small mb-0">
+                {% for field in detail.missing_fields %}
+                <li>{{ field }}</li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="text-muted small mb-0">无</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h3 class="h6">重复检查摘要</h3>
+            <pre class="small bg-light p-2 rounded mb-0">{{ detail.duplicate_result | tojson(indent=2) if detail.duplicate_result else '无' }}</pre>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="info-card">
+            <h3 class="h6">风险检查摘要</h3>
+            <pre class="small bg-light p-2 rounded mb-0">{{ detail.risk_result | tojson(indent=2) if detail.risk_result else '无' }}</pre>
+        </div>
+    </div>
+
+    {% if detail.status in ['duplicate_suspected', 'risk_blocked'] or detail.duplicate_suspected %}
+    <div class="col-12">
+        <div class="info-card">
+            <h3 class="h6">人工标记（不自动合并/不放行）</h3>
+            <p class="text-muted small">生产环境需接鉴权。本阶段仅记录人工处理状态。</p>
+            <form class="row g-2" method="post" action="/admin/contributions/{{ detail.contribution_id }}/mark-reviewed">
+                <div class="col-md-3">
+                    <label class="form-label small">操作人</label>
+                    <input class="form-control form-control-sm" name="reviewer" value="admin" required>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small">备注</label>
+                    <input class="form-control form-control-sm" name="remark" placeholder="可选">
+                </div>
+                <div class="col-md-5 d-flex align-items-end gap-2 flex-wrap">
+                    <button type="submit" name="action" value="mark_reviewed" class="btn btn-outline-primary btn-sm">标记已阅</button>
+                    {% if detail.status == 'duplicate_suspected' or detail.duplicate_suspected %}
+                    <button type="submit" name="action" value="ignore_duplicate" class="btn btn-outline-warning btn-sm">忽略重复</button>
+                    {% endif %}
+                    {% if detail.status == 'risk_blocked' or detail.risk_level == 'high' %}
+                    <button type="submit" name="action" value="keep_blocked" class="btn btn-outline-danger btn-sm">维持拦截</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

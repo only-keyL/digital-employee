@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+
+{% block title %}知识投稿审核 - 数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">知识投稿审核</h2>
+    <span class="text-muted small">共 {{ total }} 条</span>
+</div>
+
+<div class="card-table p-3 mb-3">
+    <form class="row g-2 align-items-end" method="get" action="/admin/contributions">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="status">状态</label>
+            <select class="form-select form-select-sm" id="status" name="status">
+                <option value="" {% if not status_filter %}selected{% endif %}>全部</option>
+                <option value="pending_card_created" {% if status_filter == 'pending_card_created' %}selected{% endif %}>pending_card_created</option>
+                <option value="duplicate_suspected" {% if status_filter == 'duplicate_suspected' %}selected{% endif %}>duplicate_suspected</option>
+                <option value="risk_blocked" {% if status_filter == 'risk_blocked' %}selected{% endif %}>risk_blocked</option>
+                <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>approved</option>
+                <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>rejected</option>
+                <option value="invalid" {% if status_filter == 'invalid' %}selected{% endif %}>invalid</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="risk_level">风险等级</label>
+            <select class="form-select form-select-sm" id="risk_level" name="risk_level">
+                <option value="" {% if not risk_level_filter %}selected{% endif %}>全部</option>
+                <option value="none" {% if risk_level_filter == 'none' %}selected{% endif %}>none</option>
+                <option value="high" {% if risk_level_filter == 'high' %}selected{% endif %}>high</option>
+                <option value="medium" {% if risk_level_filter == 'medium' %}selected{% endif %}>medium</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="duplicate_suspected">重复疑似</label>
+            <select class="form-select form-select-sm" id="duplicate_suspected" name="duplicate_suspected">
+                <option value="" {% if not duplicate_filter %}selected{% endif %}>全部</option>
+                <option value="true" {% if duplicate_filter == 'true' %}selected{% endif %}>是</option>
+                <option value="false" {% if duplicate_filter == 'false' %}selected{% endif %}>否</option>
+            </select>
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">筛选</button>
+        </div>
+    </form>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>contribution_id</th>
+                <th>来源</th>
+                <th>用户</th>
+                <th>状态</th>
+                <th>重复</th>
+                <th>风险</th>
+                <th>卡片ID</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td><code class="small">{{ item.contribution_id[:8] }}…</code></td>
+                <td>{{ item.source }}</td>
+                <td>{{ item.user_name or item.user_id }}</td>
+                <td><span class="badge text-bg-secondary">{{ item.status }}</span></td>
+                <td>{% if item.duplicate_suspected %}<span class="badge text-bg-warning">是</span>{% else %}否{% endif %}</td>
+                <td>{{ item.risk_level or '-' }}</td>
+                <td>
+                    {% if item.knowledge_card_id %}
+                    <a href="/admin/knowledge/{{ item.knowledge_card_id }}">{{ item.knowledge_card_id }}</a>
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ item.created_at }}</td>
+                <td>
+                    <a class="btn btn-outline-primary btn-sm" href="/admin/contributions/{{ item.contribution_id }}">详情</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="mb-1">暂无投稿记录</p>
+    <p class="text-muted small mb-0">模拟企微沉淀提交后会出现在此列表。</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends "layout.html" %}
+
+{% block title %}待审核知识 - 数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">待审核知识</h2>
+    <span class="text-muted small">共 {{ total }} 条 pending</span>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>标题</th>
+                <th>系统</th>
+                <th>模块</th>
+                <th>标签</th>
+                <th>来源群</th>
+                <th>来源人</th>
+                <th>audit_status</th>
+                <th>vector_status</th>
+                <th>创建时间</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td>{{ item.title }}</td>
+                <td>{{ item.system_name or '-' }}</td>
+                <td>{{ item.module_name or '-' }}</td>
+                <td>{{ item.tags or '-' }}</td>
+                <td>{{ item.source_group or '-' }}</td>
+                <td>{{ item.source_user or '-' }}</td>
+                <td><span class="badge text-bg-warning">{{ item.audit_status }}</span></td>
+                <td>{{ item.vector_status or '-' }}</td>
+                <td>{{ item.create_time }}</td>
+                <td>
+                    <a class="btn btn-outline-primary btn-sm" href="/admin/knowledge/{{ item.id }}">审核</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="empty-state">
+    <p class="mb-1">暂无待审核知识</p>
+    <p class="text-muted small mb-0">企微沉淀成功后会生成 audit_status=pending 的卡片。</p>
+</div>
+{% endif %}
+{% endblock %}

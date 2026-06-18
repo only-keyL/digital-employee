@@ -33,6 +33,8 @@ from app.core.runtime_check import run_runtime_check
 # - feedback_router：反馈；
 # - statistics_router：统计；
 # - wecom_router：企业微信回调。
+from app.routers.admin_page_router import router as admin_page_router
+from app.routers.admin_review_router import router as admin_review_router
 from app.routers.api_router import router as api_router
 from app.routers.ask_router import router as ask_router
 from app.routers.ask_v2_router import router as ask_v2_router
@@ -89,6 +91,10 @@ def create_app() -> FastAPI:
 
     # 注册页面路由：例如首页、列表页、详情页等 HTML 页面。
     app.include_router(page_router)
+
+    # 注册 Stage5 后台审核 API 与页面（生产需接鉴权）。
+    app.include_router(admin_review_router)
+    app.include_router(admin_page_router)
 
     # 注册通用 API：例如 /api/health。
     app.include_router(api_router)

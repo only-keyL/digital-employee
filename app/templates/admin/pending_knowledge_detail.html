@@ -1,0 +1,92 @@
+{% extends "layout.html" %}
+
+{% block title %}知识审核 - {{ detail.title }}{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+    <a href="/admin/knowledge/pending" class="btn btn-outline-secondary btn-sm mb-2">← 返回待审核列表</a>
+    <h2 class="h4 mb-0">待审核知识详情</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="info-card">
+            <h3 class="h6">{{ detail.title }}</h3>
+            <dl class="row small mb-0">
+                <dt class="col-sm-3">ID</dt>
+                <dd class="col-sm-9">{{ detail.id }}</dd>
+                <dt class="col-sm-3">问题</dt>
+                <dd class="col-sm-9">{{ detail.question }}</dd>
+                <dt class="col-sm-3">答案</dt>
+                <dd class="col-sm-9">{{ detail.answer }}</dd>
+                <dt class="col-sm-3">系统/模块</dt>
+                <dd class="col-sm-9">{{ detail.system_name or '-' }} / {{ detail.module_name or '-' }}</dd>
+                <dt class="col-sm-3">标签</dt>
+                <dd class="col-sm-9">{{ detail.tags or '-' }}</dd>
+                <dt class="col-sm-3">场景</dt>
+                <dd class="col-sm-9">{{ detail.scene or '-' }}</dd>
+                <dt class="col-sm-3">原因分析</dt>
+                <dd class="col-sm-9">{{ detail.reason_analysis or '-' }}</dd>
+                <dt class="col-sm-3">排查步骤</dt>
+                <dd class="col-sm-9"><pre class="small mb-0">{{ detail.troubleshooting_steps or '-' }}</pre></dd>
+                <dt class="col-sm-3">解决方案</dt>
+                <dd class="col-sm-9">{{ detail.solution or '-' }}</dd>
+                <dt class="col-sm-3">风险提示</dt>
+                <dd class="col-sm-9">{{ detail.risk_notice or '-' }}</dd>
+                <dt class="col-sm-3">audit_status</dt>
+                <dd class="col-sm-9"><span class="badge text-bg-warning">{{ detail.audit_status }}</span></dd>
+                <dt class="col-sm-3">vector_status</dt>
+                <dd class="col-sm-9">{{ detail.vector_status }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        {% if detail.contribution %}
+        <div class="info-card mb-3">
+            <h3 class="h6">投稿来源</h3>
+            <p class="small mb-1">contribution: <a href="/admin/contributions/{{ detail.contribution.contribution_id }}">{{ detail.contribution.contribution_id[:8] }}…</a></p>
+            <p class="small mb-1">用户: {{ detail.contribution.user_name or detail.contribution.user_id }}</p>
+            <p class="small mb-0">状态: {{ detail.contribution.status }}</p>
+        </div>
+        {% endif %}
+
+        {% if detail.audit_status == 'pending' %}
+        <div class="info-card mb-3 border-success">
+            <h3 class="h6 text-success">审核通过</h3>
+            <p class="text-muted small">通过后 enabled=1 并异步入队 vector_sync_task，不阻塞 Qdrant。</p>
+            <form method="post" action="/admin/knowledge/{{ detail.id }}/approve">
+                <div class="mb-2">
+                    <label class="form-label small">审核人</label>
+                    <input class="form-control form-control-sm" name="audit_user" value="admin" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">备注（可选）</label>
+                    <input class="form-control form-control-sm" name="audit_remark">
+                </div>
+                <button type="submit" class="btn btn-success btn-sm" data-confirm="确认审核通过？">审核通过</button>
+            </form>
+        </div>
+
+        <div class="info-card border-danger">
+            <h3 class="h6 text-danger">审核拒绝</h3>
+            <form method="post" action="/admin/knowledge/{{ detail.id }}/reject">
+                <div class="mb-2">
+                    <label class="form-label small">审核人</label>
+                    <input class="form-control form-control-sm" name="audit_user" value="admin" required>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">拒绝原因（必填）</label>
+                    <textarea class="form-control form-control-sm" name="audit_remark" rows="3" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-danger btn-sm" data-confirm="确认拒绝？">审核拒绝</button>
+            </form>
+        </div>
+        {% else %}
+        <div class="alert alert-info small">
+            当前状态：{{ detail.audit_status }}，不可重复审核。
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
