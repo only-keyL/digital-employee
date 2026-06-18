@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 
 # settings 是项目配置对象，里面包含应用名、debug 开关、数据库地址等配置。
 from app.config.settings import settings
+from app.core.runtime_check import run_runtime_check
 
 # 下面这些 router 可以理解成一组组 Controller。
 # 每个 router 负责一类 URL：
@@ -58,6 +59,9 @@ def create_app() -> FastAPI:
     这个函数就像 Spring Boot 里的应用初始化配置。
     它把“应用基本信息”“静态文件目录”“各个 Controller”都装配到一起。
     """
+
+    # 启动前执行运行时配置检查：dev/test 仅 warning，prod 配置错误则阻止启动。
+    run_runtime_check(settings)
 
     # 创建 FastAPI 应用对象。
     # title 会显示在 OpenAPI/Swagger 文档里。
