@@ -120,6 +120,7 @@ class Settings(BaseSettings):
     redis_url: str = Field(default="", description="Redis 连接 URL")
     wecom_dedup_ttl_seconds: int = Field(default=86400, description="企微消息去重 TTL（秒）")
     deposit_session_ttl_seconds: int = Field(default=600, description="指令式知识沉淀会话 TTL（秒）")
+    conversation_context_ttl_seconds: int = Field(default=1800, description="多轮追问短期上下文 TTL（秒）")
 
     # --- LangSmith（本阶段仅配置字段）---
     langsmith_tracing: bool = Field(default=False, description="是否启用 LangSmith 追踪")

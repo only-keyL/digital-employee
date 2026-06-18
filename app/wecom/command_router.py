@@ -14,6 +14,8 @@ from app.graphs.knowledge_deposit_graph import KnowledgeDepositGraphRunner
 from app.infra.redis_client import RedisClientError
 from app.schemas.mock_wecom_schema import MockWeComResponse
 from app.schemas.wecom_message_schema import WeComMessage
+from app.services.context_enhance_service import ContextEnhanceService
+from app.services.conversation_context_service import ConversationContextService
 from app.services.deposit_session_service import DepositSessionService
 from app.services.feedback_evolution_service import FeedbackEvolutionError, FeedbackEvolutionService
 from app.wecom.command_detector import CommandDetector, CommandType
@@ -172,15 +174,44 @@ class CommandRouter:
             )
 
     async def _handle_normal_question(self, message: WeComMessage) -> MockWeComResponse:
+        enhance_svc = ContextEnhanceService(self.session)
+        enhance_result = await enhance_svc.enhance_question_async(
+            question=message.content or "",
+            user_id=message.user_id or "anonymous",
+            group_id=message.group_id,
+        )
         state = await self.ask_runner.run(
-            question=message.content,
+            question=enhance_result.rewritten_question,
+            original_question=enhance_result.original_question,
+            rewritten_question=enhance_result.rewritten_question,
+            used_context=1 if enhance_result.used_context else 0,
+            context_source=enhance_result.context_source,
+            context_summary=enhance_result.context_summary,
             user_id=message.user_id,
             group_id=message.group_id,
             source="mock_wecom",
         )
+        answer = (state.get("answer") or "").strip()
+        if answer and (message.user_id or "").strip():
+            try:
+                await ConversationContextService().save_recent_context(
+                    user_id=message.user_id,
+                    group_id=message.group_id,
+                    question=enhance_result.original_question,
+                    rewritten_question=enhance_result.rewritten_question,
+                    answer=answer,
+                    system_name=state.get("system_name"),
+                    module_name=state.get("module_name"),
+                    primary_matched_card_id=state.get("primary_matched_card_id"),
+                    primary_matched_card_title=state.get("primary_matched_card_title"),
+                    confidence_level=state.get("confidence_level"),
+                )
+            except Exception as exc:
+                logger.warning("保存企微问答会话上下文失败，不影响主流程：%s", exc)
+
         return MockWeComResponse(
             message_id=message.message_id,
-            reply=state.get("answer") or "",
+            reply=answer,
             command=CommandType.NORMAL_QUESTION.value,
             session_active=False,
             run_id=state.get("run_id"),

@@ -6,7 +6,7 @@ from __future__ import annotations
 import argparse
 import sys
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -89,8 +89,9 @@ def run_data_checks() -> list[str]:
     failures: list[str] = []
     session = SessionLocal()
     suffix = uuid.uuid4().hex[:8]
-    batch_start = datetime.now()
-    now = batch_start
+    # MySQL DATETIME 不含微秒，batch_start 需略早于插入时间避免 >= 过滤漏数
+    now = datetime.now().replace(microsecond=0)
+    batch_start = now - timedelta(seconds=1)
     ids: dict = {
         "question_log_ids": [],
         "feedback_ids": [],

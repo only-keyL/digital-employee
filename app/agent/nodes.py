@@ -172,32 +172,22 @@ def validate_input_node(state: AskState, config: RunnableConfig) -> dict[str, An
 
 
 def preprocess_question_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
-    """节点：填充 question_masked / rewritten_question 等字段（当前为占位实现）。
+    """节点：填充 question_masked / rewritten_question 等字段。
 
-    当前 MVP 里没有真正做脱敏、问题改写、意图识别，所以：
-    - question_masked 等于原问题；
-    - rewritten_question 也等于原问题；
-    - intent 固定为 question。
-
-    后续如果要加“手机号脱敏”“问题改写”“意图分类”，通常会放在这一层。
+    若 AskService 已做上下文增强，则保留改写后问题用于检索；
+    否则 question_masked / rewritten_question 回退为原始问题。
     """
 
-    question = state.get("question_raw") or ""
+    question_raw = state.get("question_raw") or ""
+    rewritten = state.get("rewritten_question") or question_raw
     return {
-        # question_masked：脱敏后的问题。
-        # 当前暂时等于原文。
-        "question_masked": question,
-
-        # rewritten_question：改写后的问题。
-        # 当前暂时等于原文。
-        "rewritten_question": question,
-
-        # intent：问题意图。
-        # 当前没有多意图分支，固定为 question。
+        "question_masked": rewritten,
+        "rewritten_question": rewritten,
+        "original_question": state.get("original_question") or question_raw,
+        "used_context": state.get("used_context") or 0,
+        "context_source": state.get("context_source"),
+        "context_summary": state.get("context_summary"),
         "intent": "question",
-
-        # 下面三个字段都做了默认值兜底。
-        # 这样即使上游没传，也能保证日志里有可用值。
         "user_id": state.get("user_id") or "anonymous",
         "group_id": state.get("group_id") or "demo_group",
         "source_type": state.get("source_type") or "web",

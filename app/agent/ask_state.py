@@ -10,8 +10,12 @@ class AskState(TypedDict, total=False):
 
     # --- 输入 ---
     question_raw: str  # 用户原始问题
-    question_masked: str  # 脱敏后问题（当前等于原文）
-    rewritten_question: str  # 改写后问题（当前等于原文）
+    question_masked: str  # 脱敏后问题（检索用，可能为改写后问题）
+    rewritten_question: str  # 改写后问题
+    original_question: str  # 上下文增强前的原始问题（与 question_raw 一致）
+    used_context: int  # 是否使用上下文增强 0/1
+    context_source: str | None  # 上下文来源
+    context_summary: str | None  # 上下文摘要说明
     user_id: str  # 用户 ID
     group_id: str  # 群组 / 会话 ID
     source_type: str  # 来源：web / wecom 等

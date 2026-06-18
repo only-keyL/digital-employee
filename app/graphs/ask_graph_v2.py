@@ -29,7 +29,12 @@ _LLM_FALLBACK_ANSWER = "当前模型服务暂时不可用，已记录问题，�
 class AskGraphV2State(TypedDict, total=False):
     run_id: str
     question: str
+    original_question: str
+    rewritten_question: str
     normalized_question: str
+    used_context: int
+    context_source: str | None
+    context_summary: str | None
     source: str
     user_id: str | None
     group_id: str | None
@@ -74,10 +79,22 @@ class AskGraphV2Runner:
         user_id: str | None = None,
         group_id: str | None = None,
         source: str = "api_ask_v2",
+        original_question: str | None = None,
+        rewritten_question: str | None = None,
+        used_context: int = 0,
+        context_source: str | None = None,
+        context_summary: str | None = None,
     ) -> AskGraphV2State:
+        original = (original_question or question or "").strip()
+        rewritten = (rewritten_question or question or "").strip()
         state: AskGraphV2State = {
             "run_id": str(uuid.uuid4()),
-            "question": question,
+            "question": rewritten,
+            "original_question": original,
+            "rewritten_question": rewritten,
+            "used_context": used_context,
+            "context_source": context_source,
+            "context_summary": context_summary,
             "source": source,
             "user_id": user_id,
             "group_id": group_id,

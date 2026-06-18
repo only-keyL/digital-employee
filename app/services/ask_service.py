@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import time
 
 from sqlalchemy.orm import Session
@@ -9,6 +10,9 @@ from sqlalchemy.orm import Session
 from app.agent.ask_state import AskState
 from app.agent.graph_runner import AskGraphRunner
 from app.schemas.ask_schema import AskRequest, AskResponse, AskSourceItem
+from app.schemas.context_schema import ContextEnhanceResult
+from app.services.context_enhance_service import ContextEnhanceService
+from app.services.conversation_context_service import ConversationContextService
 
 
 class AskService:
@@ -19,14 +23,28 @@ class AskService:
 
     def ask(self, payload: AskRequest) -> AskResponse:
         """执行一次完整问答流程。"""
-        initial_state = self._build_initial_state(payload)
+        enhance_result = ContextEnhanceService(self.session).enhance_question(
+            question=payload.question or "",
+            user_id=payload.user_id or "anonymous",
+            group_id=payload.group_id,
+        )
+        initial_state = self._build_initial_state(payload, enhance_result)
         final_state = AskGraphRunner(self.session).run(initial_state)
+        self._save_conversation_context(payload, enhance_result, final_state)
         return self._map_state_to_response(final_state)
 
-    def _build_initial_state(self, payload: AskRequest) -> AskState:
-        """将 HTTP 请求体转换为 LangGraph 初始 AskState。"""
+    def _build_initial_state(self, payload: AskRequest, enhance: ContextEnhanceResult) -> AskState:
+        """将 HTTP 请求体与上下文增强结果转换为 LangGraph 初始 AskState。"""
+        original = enhance.original_question or (payload.question or "")
+        rewritten = enhance.rewritten_question or original
         return {
-            "question_raw": payload.question or "",
+            "question_raw": original,
+            "original_question": original,
+            "question_masked": rewritten,
+            "rewritten_question": rewritten,
+            "used_context": 1 if enhance.used_context else 0,
+            "context_source": enhance.context_source,
+            "context_summary": enhance.context_summary,
             "user_id": payload.user_id or "anonymous",
             "group_id": payload.group_id or "demo_group",
             "source_type": payload.source_type or "web",
@@ -58,6 +76,34 @@ class AskService:
             "error_stage": None,
             "error_message": None,
         }
+
+    def _save_conversation_context(
+        self,
+        payload: AskRequest,
+        enhance: ContextEnhanceResult,
+        state: AskState,
+    ) -> None:
+        """问答结束后保存 Redis 短期上下文，失败不影响主流程。"""
+        user_id = (payload.user_id or "").strip()
+        answer = (state.get("answer") or "").strip()
+        if not user_id or not answer:
+            return
+
+        svc = ConversationContextService()
+        asyncio.run(
+            svc.save_recent_context(
+                user_id=user_id,
+                group_id=payload.group_id,
+                question=enhance.original_question,
+                rewritten_question=enhance.rewritten_question,
+                answer=answer,
+                system_name=state.get("system_name"),
+                module_name=state.get("module_name"),
+                primary_matched_card_id=state.get("primary_matched_card_id"),
+                primary_matched_card_title=state.get("primary_matched_card_title"),
+                confidence_level=state.get("confidence_level"),
+            )
+        )
 
     def _map_state_to_response(self, state: AskState) -> AskResponse:
         """将 LangGraph 最终 state 映射为 /api/ask 响应结构。"""

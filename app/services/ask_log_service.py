@@ -64,6 +64,8 @@ class AskLogService:
             answer_source=state.get("answer_source"),
             system_name=state.get("system_name"),
             module_name=state.get("module_name"),
+            used_context=1 if state.get("used_context") else 0,
+            context_source=state.get("context_source"),
             answer=state.get("answer") or "",
             fallback_reason=state.get("fallback_reason"),
             need_human=1 if state.get("need_human", False) else 0,

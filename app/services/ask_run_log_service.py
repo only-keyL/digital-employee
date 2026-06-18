@@ -181,9 +181,9 @@ class AskRunLogService:
 
         log = QuestionLog(
             request_id=state.get("run_id") or uuid.uuid4().hex,
-            question_raw=state.get("question") or question,
+            question_raw=state.get("original_question") or state.get("question") or question,
             question_masked=question,
-            rewritten_question=question,
+            rewritten_question=state.get("rewritten_question") or question,
             user_id=state.get("user_id") or "anonymous",
             group_id=state.get("group_id"),
             source_type=state.get("source") or "api_ask_v2",
@@ -198,6 +198,8 @@ class AskRunLogService:
             answer_source=state.get("answer_source") or log_patch.answer_source,
             system_name=state.get("system_name") or log_patch.system_name,
             module_name=state.get("module_name") or log_patch.module_name,
+            used_context=1 if state.get("used_context") else 0,
+            context_source=state.get("context_source"),
             answer=state.get("answer") or "",
             fallback_reason=state.get("fallback_reason"),
             need_human=1 if confidence_level == "medium" else 0,
