@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block title %}审计详情 - 数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+    <h2 class="h4 mb-1">操作审计详情</h2>
+    <a class="small" href="/admin/operation-logs">返回列表</a>
+</div>
+
+<div class="card-table p-3 mb-3">
+    <dl class="row mb-0">
+        <dt class="col-sm-2">operation_id</dt>
+        <dd class="col-sm-10"><code>{{ detail.operation_id }}</code></dd>
+        <dt class="col-sm-2">操作人</dt>
+        <dd class="col-sm-10">{{ detail.operator }}</dd>
+        <dt class="col-sm-2">动作</dt>
+        <dd class="col-sm-10"><code>{{ detail.action }}</code></dd>
+        <dt class="col-sm-2">目标</dt>
+        <dd class="col-sm-10">{{ detail.target_type }} / {{ detail.target_id }}</dd>
+        <dt class="col-sm-2">时间</dt>
+        <dd class="col-sm-10">{{ detail.created_at or '-' }}</dd>
+        <dt class="col-sm-2">IP</dt>
+        <dd class="col-sm-10">{{ detail.ip_address or '-' }}</dd>
+        <dt class="col-sm-2">备注</dt>
+        <dd class="col-sm-10">{{ detail.remark or '-' }}</dd>
+    </dl>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card-table p-3">
+            <h3 class="h6">变更前（脱敏摘要）</h3>
+            <ul class="small mb-0">
+                {% for key, value in detail.before_snapshot.items() %}
+                <li><strong>{{ key }}</strong>: {{ value }}</li>
+                {% else %}
+                <li class="text-muted">无</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card-table p-3">
+            <h3 class="h6">变更后（脱敏摘要）</h3>
+            <ul class="small mb-0">
+                {% for key, value in detail.after_snapshot.items() %}
+                <li><strong>{{ key }}</strong>: {{ value }}</li>
+                {% else %}
+                <li class="text-muted">无</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

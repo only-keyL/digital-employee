@@ -146,6 +146,19 @@ class Settings(BaseSettings):
 
     mock_mode: bool = Field(default=True, description="全局 Mock 演示模式")
 
+    # --- 阶段 6：后台鉴权 / 消息幂等 / 安全扫描 / 运维 ---
+    admin_auth_enabled: bool = Field(default=False, description="是否启用后台 Token 鉴权")
+    admin_token: str = Field(default="", description="后台管理 Token，禁止打印明文")
+    admin_token_header: str = Field(default="X-Admin-Token", description="后台 Token 请求头名称")
+    message_dedup_enabled: bool = Field(default=True, description="是否启用 message_id 幂等")
+    message_dedup_ttl_seconds: int = Field(default=86400, description="消息幂等记录 TTL 建议值（秒）")
+    security_scan_fail_on_secret: bool = Field(default=True, description="安全扫描发现泄露时是否失败")
+    security_scan_exclude_dirs: str = Field(
+        default=".git,.venv,__pycache__,docs/prod",
+        description="安全扫描排除目录，逗号分隔",
+    )
+    ops_max_retry_tasks: int = Field(default=50, description="运维脚本单次最大重试任务数")
+
     @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, value: str) -> str:

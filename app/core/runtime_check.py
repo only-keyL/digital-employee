@@ -6,6 +6,7 @@ import logging
 
 from app.core.env_validator import ConfigCheckResult, validate_settings
 from app.core.settings import Settings
+from app.core.startup_check import collect_startup_issues
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,9 @@ class RuntimeConfigError(RuntimeError):
 def run_runtime_check(settings: Settings) -> None:
     """根据 APP_ENV 执行配置检查：dev/test 仅 warning，prod 有 error 则阻止启动。"""
     result = validate_settings(settings)
+    startup_errors, startup_warnings = collect_startup_issues(settings)
+    result.errors.extend(startup_errors)
+    result.warnings.extend(startup_warnings)
     _log_check_result(settings, result)
 
     if settings.is_prod and result.errors:

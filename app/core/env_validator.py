@@ -9,6 +9,9 @@ from urllib.parse import urlparse
 
 from app.core.settings import Settings
 
+# 生产环境禁止使用的弱 Admin Token
+_WEAK_ADMIN_TOKENS = frozenset({"admin", "123456", "password", "change_me", "your_token"})
+
 # 明显的占位符/示例值，prod 环境禁止使用
 _PLACEHOLDER_VALUES = frozenset(
     {
@@ -44,6 +47,7 @@ _SENSITIVE_FIELD_NAMES = frozenset(
         "wecom_encoding_aes_key",
         "wecom_bot_key",
         "redis_url",
+        "admin_token",
     }
 )
 
@@ -156,6 +160,20 @@ def _validate_prod(settings: Settings, result: ConfigCheckResult, *, example_mod
 
     if settings.effective_mysql_user.lower() == "root":
         result.errors.append("生产环境禁止使用 root 数据库账号。")
+
+    if not settings.admin_auth_enabled:
+        result.errors.append("生产环境 ADMIN_AUTH_ENABLED 必须为 true。")
+    if not _is_configured(settings.admin_token):
+        result.errors.append("生产环境必须配置 ADMIN_TOKEN。")
+    elif settings.admin_token.strip().lower() in _WEAK_ADMIN_TOKENS:
+        result.errors.append("生产环境 ADMIN_TOKEN 不能使用弱口令或占位符。")
+    elif _is_placeholder_value(settings.admin_token):
+        result.errors.append("生产环境 ADMIN_TOKEN 不能使用占位符示例值。")
+
+    if not settings.message_dedup_enabled:
+        result.errors.append("生产环境 MESSAGE_DEDUP_ENABLED 必须为 true。")
+    if settings.message_dedup_ttl_seconds < 3600:
+        result.errors.append("生产环境 MESSAGE_DEDUP_TTL_SECONDS 不应小于 3600。")
 
     _warn_if_obvious_placeholder(settings, result)
 

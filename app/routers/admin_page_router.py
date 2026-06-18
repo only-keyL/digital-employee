@@ -12,11 +12,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.config.settings import settings
+from app.core.admin_auth import require_admin_auth
 from app.db.database import get_db
 from app.schemas.admin_review_schema import ContributionMarkReviewRequest, KnowledgeReviewActionRequest
+from app.services.admin_operation_log_service import AdminOperationLogService
 from app.services.admin_review_service import AdminReviewService, AdminReviewServiceError
 
-router = APIRouter(tags=["admin-pages"])
+router = APIRouter(tags=["admin-pages"], dependencies=[Depends(require_admin_auth)])
 templates = Jinja2Templates(directory="app/templates")
 
 MAX_PAGE_SIZE = 100
@@ -57,6 +59,14 @@ def _normalize_page(page: int, page_size: int) -> tuple[int, int]:
     page = max(1, page)
     page_size = max(1, min(page_size, MAX_PAGE_SIZE))
     return page, page_size
+
+
+def _client_meta(request: Request) -> tuple[str | None, str | None]:
+    forwarded = request.headers.get("x-forwarded-for")
+    ip = (forwarded.split(",")[0].strip() if forwarded else None) or (
+        request.client.host if request.client else None
+    )
+    return ip, request.headers.get("user-agent")
 
 
 @router.get("/admin/contributions", response_class=HTMLResponse)
@@ -126,15 +136,22 @@ def admin_contribution_detail(request: Request, contribution_id: str, db: Sessio
 
 @router.post("/admin/contributions/{contribution_id}/mark-reviewed")
 def admin_mark_contribution_reviewed(
+    request: Request,
     contribution_id: str,
     action: str = Form(...),
     reviewer: str = Form(...),
     remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    ip, ua = _client_meta(request)
     try:
         payload = ContributionMarkReviewRequest(action=action, reviewer=reviewer, remark=remark or None)
-        result = AdminReviewService(db).mark_contribution_reviewed(contribution_id, payload)
+        result = AdminReviewService(db).mark_contribution_reviewed(
+            contribution_id,
+            payload,
+            ip_address=ip,
+            user_agent=ua,
+        )
         return _redirect(f"/admin/contributions/{contribution_id}", message=result["message"])
     except (AdminReviewServiceError, ValidationError) as exc:
         msg = exc.message if isinstance(exc, AdminReviewServiceError) else str(exc)
@@ -193,18 +210,25 @@ def admin_pending_knowledge_detail(request: Request, knowledge_id: int, db: Sess
 
 @router.post("/admin/knowledge/{knowledge_id}/approve")
 def admin_approve_knowledge(
+    request: Request,
     knowledge_id: int,
     audit_user: str = Form(...),
     audit_remark: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    ip, ua = _client_meta(request)
     try:
         payload = KnowledgeReviewActionRequest(
             action="approve",
             audit_user=audit_user,
             audit_remark=audit_remark or None,
         )
-        result = AdminReviewService(db).approve_knowledge(knowledge_id, payload)
+        result = AdminReviewService(db).approve_knowledge(
+            knowledge_id,
+            payload,
+            ip_address=ip,
+            user_agent=ua,
+        )
         return _redirect(f"/admin/knowledge/{knowledge_id}", message=result["message"])
     except (AdminReviewServiceError, ValidationError) as exc:
         msg = exc.message if isinstance(exc, AdminReviewServiceError) else str(exc)
@@ -213,19 +237,88 @@ def admin_approve_knowledge(
 
 @router.post("/admin/knowledge/{knowledge_id}/reject")
 def admin_reject_knowledge(
+    request: Request,
     knowledge_id: int,
     audit_user: str = Form(...),
     audit_remark: str = Form(...),
     db: Session = Depends(get_db),
 ):
+    ip, ua = _client_meta(request)
     try:
         payload = KnowledgeReviewActionRequest(
             action="reject",
             audit_user=audit_user,
             audit_remark=audit_remark,
         )
-        result = AdminReviewService(db).reject_knowledge(knowledge_id, payload)
+        result = AdminReviewService(db).reject_knowledge(
+            knowledge_id,
+            payload,
+            ip_address=ip,
+            user_agent=ua,
+        )
         return _redirect(f"/admin/knowledge/{knowledge_id}", message=result["message"])
     except (AdminReviewServiceError, ValidationError) as exc:
         msg = exc.message if isinstance(exc, AdminReviewServiceError) else str(exc)
         return _redirect(f"/admin/knowledge/{knowledge_id}", error=msg)
+
+
+@router.get("/admin/operation-logs", response_class=HTMLResponse)
+def admin_operation_log_list(
+    request: Request,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    operator: str | None = Query(None),
+    action: str | None = Query(None),
+    target_type: str | None = Query(None),
+    db: Session = Depends(get_db),
+):
+    """后台操作审计列表页。"""
+    page, page_size = _normalize_page(page, page_size)
+    try:
+        data = AdminOperationLogService(db).list_logs(
+            page=page,
+            page_size=page_size,
+            operator=operator or None,
+            action=action or None,
+            target_type=target_type or None,
+        )
+        ctx = _page_context(
+            request,
+            "admin_operation_logs",
+            items=data["items"],
+            total=data["total"],
+            page=page,
+            page_size=page_size,
+            operator_filter=operator or "",
+            action_filter=action or "",
+            target_type_filter=target_type or "",
+        )
+        return templates.TemplateResponse(
+            request=request,
+            name="admin/operation_log_list.html",
+            context=ctx,
+        )
+    except SQLAlchemyError as exc:
+        ctx = _page_context(request, "admin_operation_logs", items=[], total=0, db_error=str(exc))
+        return templates.TemplateResponse(
+            request=request,
+            name="admin/operation_log_list.html",
+            context=ctx,
+        )
+
+
+@router.get("/admin/operation-logs/{operation_id}", response_class=HTMLResponse)
+def admin_operation_log_detail(request: Request, operation_id: str, db: Session = Depends(get_db)):
+    """后台操作审计详情页。"""
+    try:
+        detail = AdminOperationLogService(db).get_detail(operation_id)
+        if detail is None:
+            return _redirect("/admin/operation-logs", error="审计记录不存在")
+        ctx = _page_context(request, "admin_operation_logs", detail=detail)
+        return templates.TemplateResponse(
+            request=request,
+            name="admin/operation_log_detail.html",
+            context=ctx,
+        )
+    except SQLAlchemyError as exc:
+        return _redirect("/admin/operation-logs", error=f"数据库错误：{exc}")

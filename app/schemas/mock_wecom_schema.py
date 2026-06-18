@@ -13,3 +13,6 @@ class MockWeComResponse(BaseModel):
     contribution_id: str | None = None
     knowledge_card_id: int | None = None
     status: str | None = None
+    success: bool = Field(default=True, description="业务是否成功；幂等冲突时为 false")
+    idempotent: bool = Field(default=False, description="是否命中幂等缓存")
+    idempotent_status: str | None = Field(default=None, description="幂等状态：duplicate_success 等")

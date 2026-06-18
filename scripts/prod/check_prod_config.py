@@ -106,6 +106,9 @@ def run_self_test() -> int:
         ("prod 使用 mock LLM 应失败", _case_prod_mock_llm_fails),
         ("prod 缺少 Qdrant API Key 应失败", _case_prod_missing_qdrant_key_fails),
         ("prod 使用 root 数据库账号应失败", _case_prod_root_db_fails),
+        ("prod 未开启后台鉴权应失败", _case_prod_admin_auth_disabled_fails),
+        ("prod 弱 ADMIN_TOKEN 应失败", _case_prod_weak_admin_token_fails),
+        ("prod 未开启消息幂等应失败", _case_prod_message_dedup_disabled_fails),
         ("dev 缺少生产配置不应失败", _case_dev_missing_prod_config_ok),
     ]
 
@@ -131,10 +134,11 @@ def run_self_test() -> int:
     return 0
 
 
-def _case_prod_mock_llm_fails() -> None:
-    settings = Settings(
+def _base_prod_settings(**overrides) -> Settings:
+    """构造满足大部分 prod 硬校验的 Settings 基线。"""
+    payload = dict(
         app_env="prod",
-        llm_provider="mock",
+        llm_provider="deepseek",
         llm_api_key="real_key_value",
         qdrant_mode="remote",
         qdrant_url="https://qdrant.example.com",
@@ -151,62 +155,55 @@ def _case_prod_mock_llm_fails() -> None:
         wecom_token="wecom_token_value",
         wecom_encoding_aes_key="encoding_aes_key_value",
         mysql_user="dea_prod",
+        admin_auth_enabled=True,
+        admin_token="strong_prod_admin_token_value",
+        message_dedup_enabled=True,
+        message_dedup_ttl_seconds=86400,
     )
+    payload.update(overrides)
+    return Settings(**payload)
+
+
+def _case_prod_mock_llm_fails() -> None:
+    settings = _base_prod_settings(llm_provider="mock")
     result = validate_settings(settings)
     assert result.errors, "prod + mock LLM 应产生 error"
     assert any("mock" in item.lower() for item in result.errors)
 
 
 def _case_prod_missing_qdrant_key_fails() -> None:
-    settings = Settings(
-        app_env="prod",
-        llm_provider="deepseek",
-        llm_api_key="real_key_value",
-        qdrant_mode="remote",
-        qdrant_url="https://qdrant.example.com",
-        qdrant_api_key="",
-        qdrant_collection="digital_employee_knowledge_prod",
-        redis_url="redis://127.0.0.1:6379/0",
-        langsmith_tracing=True,
-        langsmith_api_key="langsmith_secret_key",
-        langsmith_project="digital-employee-prod",
-        wecom_enabled=True,
-        wecom_corp_id="corp123456",
-        wecom_agent_id="1000001",
-        wecom_secret="wecom_secret_value",
-        wecom_token="wecom_token_value",
-        wecom_encoding_aes_key="encoding_aes_key_value",
-        mysql_user="dea_prod",
-    )
+    settings = _base_prod_settings(qdrant_api_key="")
     result = validate_settings(settings)
     assert result.errors, "prod 缺少 QDRANT_API_KEY 应产生 error"
     assert any("QDRANT_API_KEY" in item for item in result.errors)
 
 
 def _case_prod_root_db_fails() -> None:
-    settings = Settings(
-        app_env="prod",
-        llm_provider="deepseek",
-        llm_api_key="real_key_value",
-        qdrant_mode="remote",
-        qdrant_url="https://qdrant.example.com",
-        qdrant_api_key="qdrant_secret_key",
-        qdrant_collection="digital_employee_knowledge_prod",
-        redis_url="redis://127.0.0.1:6379/0",
-        langsmith_tracing=True,
-        langsmith_api_key="langsmith_secret_key",
-        langsmith_project="digital-employee-prod",
-        wecom_enabled=True,
-        wecom_corp_id="corp123456",
-        wecom_agent_id="1000001",
-        wecom_secret="wecom_secret_value",
-        wecom_token="wecom_token_value",
-        wecom_encoding_aes_key="encoding_aes_key_value",
-        mysql_user="root",
-    )
+    settings = _base_prod_settings(mysql_user="root")
     result = validate_settings(settings)
     assert result.errors, "prod + root 数据库账号应产生 error"
     assert any("root" in item.lower() for item in result.errors)
+
+
+def _case_prod_admin_auth_disabled_fails() -> None:
+    settings = _base_prod_settings(admin_auth_enabled=False)
+    result = validate_settings(settings)
+    assert result.errors, "prod 关闭 ADMIN_AUTH 应产生 error"
+    assert any("ADMIN_AUTH" in item for item in result.errors)
+
+
+def _case_prod_weak_admin_token_fails() -> None:
+    settings = _base_prod_settings(admin_token="123456")
+    result = validate_settings(settings)
+    assert result.errors, "prod 弱 ADMIN_TOKEN 应产生 error"
+    assert any("ADMIN_TOKEN" in item for item in result.errors)
+
+
+def _case_prod_message_dedup_disabled_fails() -> None:
+    settings = _base_prod_settings(message_dedup_enabled=False)
+    result = validate_settings(settings)
+    assert result.errors, "prod 关闭 MESSAGE_DEDUP 应产生 error"
+    assert any("MESSAGE_DEDUP" in item for item in result.errors)
 
 
 def _case_dev_missing_prod_config_ok() -> None:

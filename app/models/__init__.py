@@ -1,5 +1,6 @@
 from app.db.database import Base
 
+from app.models.admin_operation_log import AdminOperationLog
 from app.models.ask_run import AskRun
 
 from app.models.feedback_log import FeedbackLog
@@ -9,6 +10,7 @@ from app.models.knowledge_card import KnowledgeCard
 from app.models.knowledge_contribution import KnowledgeContribution
 
 from app.models.llm_call_log import LlmCallLog
+from app.models.message_process_log import MessageProcessLog
 
 from app.models.question_log import QuestionLog
 
@@ -28,6 +30,8 @@ __all__ = [
 
     "Base",
 
+    "AdminOperationLog",
+
     "AskRun",
 
     "FeedbackLog",
@@ -37,6 +41,8 @@ __all__ = [
     "KnowledgeContribution",
 
     "LlmCallLog",
+
+    "MessageProcessLog",
 
     "QuestionLog",
 

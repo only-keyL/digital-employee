@@ -21,6 +21,7 @@ from app.schemas.admin_review_schema import (
     PendingKnowledgeDetail,
     PendingKnowledgeListItem,
 )
+from app.services.admin_operation_log_service import AdminOperationLogService
 from app.services.stage3_vector_sync_service import Stage3VectorSyncService
 
 logger = logging.getLogger(__name__)
@@ -253,7 +254,14 @@ class AdminReviewService:
         contrib.status = new_status
         self.repo.update_contribution(contrib)
 
-    def approve_knowledge(self, knowledge_id: int, payload: KnowledgeReviewActionRequest) -> dict[str, Any]:
+    def approve_knowledge(
+        self,
+        knowledge_id: int,
+        payload: KnowledgeReviewActionRequest,
+        *,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
         """审核通过：启用知识并入队向量同步，不直接调用 Qdrant。"""
         if payload.action != "approve":
             raise AdminReviewServiceError("请使用 approve 动作审核通过")
@@ -262,6 +270,7 @@ class AdminReviewService:
             raise AdminReviewServiceError("审核人不能为空")
 
         card = self._get_pending_card_or_raise(knowledge_id)
+        before_snapshot = AdminOperationLogService._card_snapshot(card)
         card.audit_status = "approved"
         card.enabled = 1
         card.audit_user = audit_user
@@ -282,6 +291,18 @@ class AdminReviewService:
         except Exception:
             logger.exception("审核通过后入队向量同步失败 knowledge_id=%s", knowledge_id)
 
+        audit_svc = AdminOperationLogService(self.session)
+        audit_svc.write_log(
+            operator=audit_user,
+            action="approve_knowledge",
+            target_type="knowledge_card",
+            target_id=str(knowledge_id),
+            before=before_snapshot,
+            after=AdminOperationLogService._card_snapshot(card),
+            remark=payload.audit_remark,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
         self.repo.save()
         self.repo.refresh(card)
         logger.info(
@@ -300,7 +321,14 @@ class AdminReviewService:
             "message": "审核通过，已创建向量同步任务" if vector_task_created else "审核通过",
         }
 
-    def reject_knowledge(self, knowledge_id: int, payload: KnowledgeReviewActionRequest) -> dict[str, Any]:
+    def reject_knowledge(
+        self,
+        knowledge_id: int,
+        payload: KnowledgeReviewActionRequest,
+        *,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+    ) -> dict[str, Any]:
         """审核拒绝：必须填写原因，不创建 vector_sync_task。"""
         if payload.action != "reject":
             raise AdminReviewServiceError("请使用 reject 动作审核拒绝")
@@ -312,6 +340,7 @@ class AdminReviewService:
             raise AdminReviewServiceError("审核人不能为空")
 
         card = self._get_pending_card_or_raise(knowledge_id)
+        before_snapshot = AdminOperationLogService._card_snapshot(card)
         card.audit_status = "rejected"
         card.enabled = 0
         card.audit_user = audit_user
@@ -321,6 +350,18 @@ class AdminReviewService:
         card.update_user = audit_user
         self.repo.update_knowledge_card(card)
         self._sync_contribution_status(knowledge_id, "rejected")
+        audit_svc = AdminOperationLogService(self.session)
+        audit_svc.write_log(
+            operator=audit_user,
+            action="reject_knowledge",
+            target_type="knowledge_card",
+            target_id=str(knowledge_id),
+            before=before_snapshot,
+            after=AdminOperationLogService._card_snapshot(card),
+            remark=remark,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
         self.repo.save()
         self.repo.refresh(card)
         logger.info("知识审核拒绝 knowledge_id=%s audit_user=%s", knowledge_id, audit_user)
@@ -338,12 +379,16 @@ class AdminReviewService:
         self,
         contribution_id: str,
         payload: ContributionMarkReviewRequest,
+        *,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
     ) -> dict[str, Any]:
         """人工标记 duplicate_suspected / risk_blocked 投稿，不修改 knowledge_card。"""
         record = self.repo.get_contribution_by_contribution_id(contribution_id)
         if record is None:
             raise AdminReviewServiceError("投稿记录不存在")
 
+        before_snapshot = AdminOperationLogService._contribution_snapshot(record)
         action = payload.action
         if action == "mark_reviewed":
             if record.status not in {"duplicate_suspected", "risk_blocked", "reviewed"}:
@@ -364,7 +409,25 @@ class AdminReviewService:
             prefix = f"[{payload.reviewer}] {payload.remark.strip()}"
             record.reject_reason = (record.reject_reason or "") + ("\n" if record.reject_reason else "") + prefix
 
+        audit_action = {
+            "mark_reviewed": "mark_contribution_reviewed",
+            "ignore_duplicate": "ignore_duplicate",
+            "keep_blocked": "keep_blocked",
+        }.get(action, action)
+
         self.repo.update_contribution(record)
+        audit_svc = AdminOperationLogService(self.session)
+        audit_svc.write_log(
+            operator=payload.reviewer.strip() or "unknown",
+            action=audit_action,
+            target_type="contribution",
+            target_id=contribution_id,
+            before=before_snapshot,
+            after=AdminOperationLogService._contribution_snapshot(record),
+            remark=payload.remark,
+            ip_address=ip_address,
+            user_agent=user_agent,
+        )
         self.repo.save()
         self.repo.refresh(record)
         return {
