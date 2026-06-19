@@ -1,5 +1,61 @@
 ﻿# 企业微信数字员工助手（digital-employee-assistant）
 
+## 生产 V1 增强版状态
+
+当前已完成生产 V1 **后增强阶段 1～7**：
+
+1. 数据与日志体系增强；
+2. 可信回答 + 来源 + 置信度；
+3. 知识卡片重复检测；
+4. 有用 / 无用 / 补充反馈闭环；
+5. 运营看板；
+6. 多轮追问 + 30 天轻量记忆；
+7. 最终文档整理与演示验收收口。
+
+**增强交付文档入口**：[docs/生产V1增强交付文档/00_增强版最终交付总览.md](docs/生产V1增强交付文档/00_增强版最终交付总览.md)
+
+### 常用入口
+
+| 能力 | 入口 |
+| --- | --- |
+| 问答接口 | `POST /api/ask` |
+| 企微模拟 | `POST /api/mock/wecom/message` |
+| 运营看板 | `GET /operation-dashboard` |
+| 反馈接口 | `POST /api/feedback` |
+| 看板 API | `GET /api/operation-dashboard/summary` |
+
+### 增强版一键验收
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONIOENCODING="utf-8"
+python scripts/prod/check_enhance_stage7_docs.py
+python scripts/prod/run_all_regression_checks.py --env-file "docs/prod/.env" --fast
+```
+
+完整命令见 [docs/生产V1增强交付文档/11_最终验收与回归命令.md](docs/生产V1增强交付文档/11_最终验收与回归命令.md)。
+
+### 生产 V1 增强交付文档
+
+| 文档 | 说明 |
+| --- | --- |
+| [00_增强版最终交付总览.md](docs/生产V1增强交付文档/00_增强版最终交付总览.md) | 增强版总览与价值 |
+| [01_完整业务流程图.md](docs/生产V1增强交付文档/01_完整业务流程图.md) | Mermaid 业务流程 |
+| [02_系统架构设计.md](docs/生产V1增强交付文档/02_系统架构设计.md) | 分层架构 |
+| [04_问答调用链详解.md](docs/生产V1增强交付文档/04_问答调用链详解.md) | 问答链路 |
+| [06_反馈闭环调用链详解.md](docs/生产V1增强交付文档/06_反馈闭环调用链详解.md) | 反馈闭环 |
+| [07_运营看板指标口径.md](docs/生产V1增强交付文档/07_运营看板指标口径.md) | 16 项指标 |
+| [11_最终验收与回归命令.md](docs/生产V1增强交付文档/11_最终验收与回归命令.md) | 验收命令 |
+| [12_比赛演示脚本与讲解话术.md](docs/生产V1增强交付文档/12_比赛演示脚本与讲解话术.md) | 演示稿 |
+| [13_面试表达与项目亮点.md](docs/生产V1增强交付文档/13_面试表达与项目亮点.md) | 面试材料 |
+| [14_最终交付验收清单.md](docs/生产V1增强交付文档/14_最终交付验收清单.md) | 交付清单 |
+| [15_已知边界与后续优化.md](docs/生产V1增强交付文档/15_已知边界与后续优化.md) | 边界与 backlog |
+
+（完整 16 篇见 `docs/生产V1增强交付文档/` 目录。）
+
+---
+
 ## 生产 V1 · 二期优化（阶段 1～7 已完成）
 
 二期在 MVP 基础上完成：配置护栏、AI 基础设施、RAG 问答（AskGraphV2）、模拟企微沉淀、后台审核治理、幂等/鉴权/审计/安全扫描与**交付文档体系**。
