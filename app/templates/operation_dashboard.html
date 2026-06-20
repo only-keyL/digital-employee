@@ -3,95 +3,92 @@
 {% block title %}运营看板 - 企业微信数字员工助手{% endblock %}
 
 {% block content %}
-<link href="/static/css/dashboard.css" rel="stylesheet">
+<link href="/static/css/dashboard_charts.css" rel="stylesheet">
 
-<div class="page-header mb-3">
-    <h2 class="h4 mb-1">运营看板</h2>
-    <p class="text-muted small mb-0">
-        {% if dashboard %}{{ dashboard.intro }}{% else %}本看板用于展示数字员工的问答效果、知识库质量、用户反馈和知识治理情况。{% endif %}
-        <span class="ms-2">统计窗口：近 {{ days }} 天（重复检测 Top 相关）</span>
-    </p>
-</div>
+<div class="dashboard-page">
+    <div class="dashboard-header page-header mb-0">
+        <h2 class="h4 mb-1">运营看板</h2>
+        <p class="small mb-0">
+            {% if dashboard %}{{ dashboard.intro }}{% else %}本看板用于展示数字员工的问答效果、知识库质量、用户反馈和知识治理情况。{% endif %}
+            <span class="ms-2">统计窗口：近 {{ days }} 天（重复检测 Top 相关）</span>
+        </p>
+    </div>
 
-{% if db_error %}
-<div class="alert alert-danger">{{ db_error }}</div>
-{% elif dashboard %}
-{% set s = dashboard.summary %}
-{% set t = dashboard.tops %}
+    {% if db_error %}
+    <div class="alert alert-danger">{{ db_error }}</div>
+    {% elif dashboard %}
+    {% set s = dashboard.summary %}
+    {% set t = dashboard.tops %}
 
-<div class="row g-3 mb-4">
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">今日提问数</div><div class="stat-value">{{ s.question.today_count }}</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">总提问数</div><div class="stat-value">{{ s.question.total_count }}</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">命中率</div><div class="stat-value">{{ (s.question.hit_rate * 100) | round(1) }}%</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">回答有效率</div><div class="stat-value">{{ (s.feedback.effective_rate * 100) | round(1) }}%</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">知识卡片数</div><div class="stat-value">{{ s.knowledge.total }}</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">待复核知识</div><div class="stat-value">{{ s.knowledge.need_review }}</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">重复预警数</div><div class="stat-value">{{ s.duplicate.high_duplicate + s.duplicate.suspected_duplicate }}</div></div></div>
-    <div class="col-md-3"><div class="stat-card"><div class="stat-label">平均耗时(ms)</div><div class="stat-value">{{ s.question.avg_latency_ms or '-' }}</div></div></div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">置信度分布</h3>
-            <table class="table table-sm mb-0">
-                <tbody>
-                    <tr><td>高</td><td>{{ s.confidence.high }}</td></tr>
-                    <tr><td>中</td><td>{{ s.confidence.medium }}</td></tr>
-                    <tr><td>低</td><td>{{ s.confidence.low }}</td></tr>
-                    <tr><td>无</td><td>{{ s.confidence.none }}</td></tr>
-                </tbody>
-            </table>
+    {# 顶部运营 KPI：6 个核心指标 #}
+    <div class="dashboard-kpi-grid dashboard-kpi-grid--ops">
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">今日提问数</div>
+            <div class="dashboard-kpi-value">{{ s.question.today_count }}</div>
+            <div class="dashboard-kpi-hint">当日活跃提问量</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">总提问数</div>
+            <div class="dashboard-kpi-value">{{ s.question.total_count }}</div>
+            <div class="dashboard-kpi-hint">累计提问总量</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">命中率</div>
+            <div class="dashboard-kpi-value">{{ (s.question.hit_rate * 100) | round(1) }}%</div>
+            <div class="dashboard-kpi-hint">命中 {{ s.question.matched_count }} / 未命中 {{ s.question.miss_count }}</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">回答有效率</div>
+            <div class="dashboard-kpi-value">{{ (s.feedback.effective_rate * 100) | round(1) }}%</div>
+            <div class="dashboard-kpi-hint">基于用户反馈评估</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">知识卡片数</div>
+            <div class="dashboard-kpi-value">{{ s.knowledge.total }}</div>
+            <div class="dashboard-kpi-hint">待复核 {{ s.knowledge.need_review }}</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">平均耗时(ms)</div>
+            <div class="dashboard-kpi-value">{{ s.question.avg_latency_ms or '-' }}</div>
+            <div class="dashboard-kpi-hint">问答响应性能</div>
         </div>
     </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">反馈分布</h3>
-            <table class="table table-sm mb-0">
-                <tbody>
-                    <tr><td>有用</td><td>{{ s.feedback.useful }}</td></tr>
-                    <tr><td>无用</td><td>{{ s.feedback.useless }}</td></tr>
-                    <tr><td>补充</td><td>{{ s.feedback.supplement }}</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">知识状态分布</h3>
-            <table class="table table-sm mb-0">
-                <tbody>
-                    <tr><td>已审核</td><td>{{ s.knowledge.approved }}</td></tr>
-                    <tr><td>待审核</td><td>{{ s.knowledge.pending }}</td></tr>
-                    <tr><td>草稿</td><td>{{ s.knowledge.draft }}</td></tr>
-                    <tr><td>已拒绝</td><td>{{ s.knowledge.rejected }}</td></tr>
-                    <tr><td>启用中</td><td>{{ s.knowledge.enabled }}</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">重复检测分布（近{{ days }}天）</h3>
-            <table class="table table-sm mb-0">
-                <tbody>
-                    <tr><td>总次数</td><td>{{ s.duplicate.total }}</td></tr>
-                    <tr><td>高度重复</td><td>{{ s.duplicate.high_duplicate }}</td></tr>
-                    <tr><td>疑似重复</td><td>{{ s.duplicate.suspected_duplicate }}</td></tr>
-                    <tr><td>相关知识</td><td>{{ s.duplicate.related }}</td></tr>
-                    <tr><td>无明显重复</td><td>{{ s.duplicate.none }}</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
 
-<div class="row g-3">
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">高频未命中 Top10</h3>
+    {# 中部图表区 #}
+    <div class="dashboard-chart-grid">
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">置信度分布</div>
+            <div class="dashboard-chart-desc">展示回答可信程度（高 / 中 / 低 / 无）</div>
+            <div id="chart-confidence-bar" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">反馈分布</div>
+            <div class="dashboard-chart-desc">展示用户反馈质量（有用 / 无用 / 补充）</div>
+            <div id="chart-feedback-pie" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">知识状态分布</div>
+            <div class="dashboard-chart-desc">展示知识治理进度与审核状态</div>
+            <div id="chart-knowledge-bar" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">重复检测分布（近{{ days }}天）</div>
+            <div class="dashboard-chart-desc">展示知识库重复治理风险</div>
+            <div id="chart-duplicate-ring" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card" style="grid-column: 1 / -1;">
+            <div class="dashboard-chart-title">高频系统 / 模块 Top10</div>
+            <div class="dashboard-chart-desc">展示提问最集中的业务系统与模块</div>
+            <div id="chart-top-modules" class="dashboard-chart-container"></div>
+        </div>
+    </div>
+
+    {# 底部明细区：保留全部 Top 表格 #}
+    <div class="dashboard-detail-grid">
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">高频未命中 Top10</div>
             {% if t.top_unanswered %}
-            <table class="table table-sm">
+            <table class="table table-sm mb-0">
                 <thead><tr><th>问题</th><th>次数</th><th>状态</th></tr></thead>
                 <tbody>
                 {% for item in t.top_unanswered %}
@@ -99,14 +96,14 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+            {% else %}
+            <div class="dashboard-empty-hint">暂无数据</div>
+            {% endif %}
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">高频系统/模块 Top10</h3>
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">高频系统/模块 Top10</div>
             {% if t.top_modules %}
-            <table class="table table-sm">
+            <table class="table table-sm mb-0">
                 <thead><tr><th>系统</th><th>模块</th><th>提问数</th></tr></thead>
                 <tbody>
                 {% for item in t.top_modules %}
@@ -114,14 +111,14 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+            {% else %}
+            <div class="dashboard-empty-hint">暂无数据</div>
+            {% endif %}
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">最常被引用知识卡片 Top10</h3>
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">最常被引用知识卡片 Top10</div>
             {% if t.top_referenced_cards %}
-            <table class="table table-sm">
+            <table class="table table-sm mb-0">
                 <thead><tr><th>标题</th><th>引用次数</th></tr></thead>
                 <tbody>
                 {% for item in t.top_referenced_cards %}
@@ -129,14 +126,14 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+            {% else %}
+            <div class="dashboard-empty-hint">暂无数据</div>
+            {% endif %}
         </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="panel-card">
-            <h3 class="h6">风险知识卡片 Top10</h3>
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">风险知识卡片 Top10</div>
             {% if t.risk_cards %}
-            <table class="table table-sm">
+            <table class="table table-sm mb-0">
                 <thead><tr><th>标题</th><th>无用</th><th>质量分</th><th>复核</th></tr></thead>
                 <tbody>
                 {% for item in t.risk_cards %}
@@ -149,9 +146,28 @@
                 {% endfor %}
                 </tbody>
             </table>
-            {% else %}<p class="text-muted small mb-0">暂无数据</p>{% endif %}
+            {% else %}
+            <div class="dashboard-empty-hint">暂无数据</div>
+            {% endif %}
         </div>
     </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if dashboard and not db_error %}
+<script src="/static/vendor/echarts.min.js"></script>
+<script>
+    // 中文注释：复用后端 OperationDashboardService 已计算好的统计数据，仅负责前端图表展示
+    const opChartData = {
+        confidence: {{ dashboard.summary.confidence | tojson }},
+        feedback: {{ dashboard.summary.feedback | tojson }},
+        knowledge: {{ dashboard.summary.knowledge | tojson }},
+        duplicate: {{ dashboard.summary.duplicate | tojson }},
+        topModules: {{ dashboard.tops.top_modules | tojson }}
+    };
+</script>
+<script src="/static/js/operation_dashboard_charts.js"></script>
 {% endif %}
 {% endblock %}

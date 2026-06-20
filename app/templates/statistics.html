@@ -1,153 +1,158 @@
-{% extends "layout.html" %}
-
-{% block title %}统计看板 - 企业微信数字员工助手{% endblock %}
-
-{% block content %}
-<div class="page-header mb-3">
-    <h2 class="h4 mb-1">统计看板</h2>
-    <p class="text-muted small mb-0">阶段九：问答命中率、反馈满意度与 Top 榜单。</p>
-</div>
-
-{% if db_error %}
-<div class="alert alert-danger">{{ db_error }}</div>
-{% else %}
-<div class="row g-3 mb-4">
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">总提问数</div>
-            <div class="stat-value">{{ dashboard.total_questions }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">命中数</div>
-            <div class="stat-value">{{ dashboard.matched_questions }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">未命中数</div>
-            <div class="stat-value">{{ dashboard.missed_questions }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">命中率</div>
-            <div class="stat-value">{{ (dashboard.match_rate * 100) | round(1) }}%</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">未命中率</div>
-            <div class="stat-value">{{ (dashboard.miss_rate * 100) | round(1) }}%</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">反馈总数</div>
-            <div class="stat-value">{{ dashboard.feedback_total }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">满意度</div>
-            <div class="stat-value">{{ (dashboard.satisfaction_rate * 100) | round(1) }}%</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">需人工反馈</div>
-            <div class="stat-value">{{ dashboard.need_human_feedback_count }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">有用反馈</div>
-            <div class="stat-value">{{ dashboard.useful_feedback_count }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">无用反馈</div>
-            <div class="stat-value">{{ dashboard.useless_feedback_count }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">知识卡片数</div>
-            <div class="stat-value">{{ dashboard.total_knowledge_cards }}</div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card">
-            <div class="stat-label">未命中问题数</div>
-            <div class="stat-value">{{ dashboard.unanswered_questions }}</div>
-        </div>
-    </div>
-</div>
-
-<div class="row g-3">
-    <div class="col-lg-6">
-        <div class="card-table p-3">
-            <h3 class="h6 mb-3">未命中 Top10（pending）</h3>
-            {% if dashboard.top_unanswered_questions %}
-            <table class="table table-sm align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>摘要</th>
-                        <th>频次</th>
-                        <th>状态</th>
-                        <th>最近出现</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in dashboard.top_unanswered_questions %}
-                    <tr>
-                        <td>{{ item.summary }}</td>
-                        <td>{{ item.frequency }}</td>
-                        <td>{{ item.status }}</td>
-                        <td>{{ item.last_seen_time or "-" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state py-3">
-                <p class="text-muted small mb-0">暂无 pending 未命中问题数据</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    <div class="col-lg-6">
-        <div class="card-table p-3">
-            <h3 class="h6 mb-3">负反馈 Top10（useless 聚合）</h3>
-            {% if dashboard.top_negative_feedback_questions %}
-            <table class="table table-sm align-middle mb-0">
-                <thead>
-                    <tr>
-                        <th>问题摘要</th>
-                        <th>负反馈次数</th>
-                        <th>最近反馈</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in dashboard.top_negative_feedback_questions %}
-                    <tr>
-                        <td>{{ item.question_summary }}</td>
-                        <td>{{ item.negative_count }}</td>
-                        <td>{{ item.last_feedback_time or "-" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% else %}
-            <div class="empty-state py-3">
-                <p class="text-muted small mb-0">暂无负反馈数据</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
-</div>
-{% endif %}
-{% endblock %}
-
+{% extends "layout.html" %}
+
+{% block title %}统计看板 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<link href="/static/css/dashboard_charts.css" rel="stylesheet">
+
+<div class="dashboard-page">
+    <div class="dashboard-header page-header mb-0">
+        <h2 class="h4 mb-1">统计看板</h2>
+        <p class="small mb-0">问答命中率、反馈满意度与知识覆盖可视化分析。</p>
+    </div>
+
+    {% if db_error %}
+    <div class="alert alert-danger">{{ db_error }}</div>
+    {% else %}
+
+    {# 顶部 KPI：保留 6 个核心指标，大数字突出展示 #}
+    <div class="dashboard-kpi-grid">
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">总提问数</div>
+            <div class="dashboard-kpi-value">{{ dashboard.total_questions }}</div>
+            <div class="dashboard-kpi-hint">累计用户提问总量</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">命中率</div>
+            <div class="dashboard-kpi-value">{{ (dashboard.match_rate * 100) | round(1) }}%</div>
+            <div class="dashboard-kpi-hint">命中 {{ dashboard.matched_questions }} / 未命中 {{ dashboard.missed_questions }}</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">满意度</div>
+            <div class="dashboard-kpi-value">{{ (dashboard.satisfaction_rate * 100) | round(1) }}%</div>
+            <div class="dashboard-kpi-hint">反馈总数 {{ dashboard.feedback_total }}</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">未命中问题数</div>
+            <div class="dashboard-kpi-value">{{ dashboard.unanswered_questions }}</div>
+            <div class="dashboard-kpi-hint">待补齐知识库覆盖</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">知识卡片数</div>
+            <div class="dashboard-kpi-value">{{ dashboard.total_knowledge_cards }}</div>
+            <div class="dashboard-kpi-hint">已沉淀知识条目</div>
+        </div>
+        <div class="dashboard-kpi-card">
+            <div class="dashboard-kpi-label">需人工反馈</div>
+            <div class="dashboard-kpi-value">{{ dashboard.need_human_feedback_count }}</div>
+            <div class="dashboard-kpi-hint">有用 {{ dashboard.useful_feedback_count }} / 无用 {{ dashboard.useless_feedback_count }}</div>
+        </div>
+    </div>
+
+    {# 中部图表区：ECharts 可视化，数据来自后端 dashboard 变量 #}
+    <div class="dashboard-chart-grid">
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">问答命中分布</div>
+            <div class="dashboard-chart-desc">展示知识库对提问的覆盖效果（命中 vs 未命中）</div>
+            <div id="chart-hit-distribution" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">反馈结果分布</div>
+            <div class="dashboard-chart-desc">展示回答质量的用户反馈结构</div>
+            <div id="chart-feedback-ring" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">命中率仪表盘</div>
+            <div class="dashboard-chart-desc">核心问答效果指标，便于领导快速判断</div>
+            <div id="chart-match-rate-gauge" class="dashboard-chart-container"></div>
+        </div>
+        <div class="dashboard-chart-card">
+            <div class="dashboard-chart-title">未命中 Top10 柱状图</div>
+            <div class="dashboard-chart-desc">高频未命中问题，指导下一步知识补齐重点</div>
+            <div id="chart-top-unanswered" class="dashboard-chart-container"></div>
+        </div>
+    </div>
+
+    {# 底部明细区：保留 Top10 表格，方便运营追查具体问题 #}
+    <div class="dashboard-detail-grid">
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">未命中 Top10（pending）</div>
+            {% if dashboard.top_unanswered_questions %}
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>摘要</th>
+                        <th>频次</th>
+                        <th>状态</th>
+                        <th>最近出现</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in dashboard.top_unanswered_questions %}
+                    <tr>
+                        <td>{{ item.summary }}</td>
+                        <td>{{ item.frequency }}</td>
+                        <td>{{ item.status }}</td>
+                        <td>{{ item.last_seen_time or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="dashboard-empty-hint">暂无 pending 未命中问题数据</div>
+            {% endif %}
+        </div>
+        <div class="dashboard-leader-table-card">
+            <div class="dashboard-table-title">负反馈 Top10（useless 聚合）</div>
+            {% if dashboard.top_negative_feedback_questions %}
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>问题摘要</th>
+                        <th>负反馈次数</th>
+                        <th>最近反馈</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in dashboard.top_negative_feedback_questions %}
+                    <tr>
+                        <td>{{ item.question_summary }}</td>
+                        <td>{{ item.negative_count }}</td>
+                        <td>{{ item.last_feedback_time or "-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="dashboard-empty-hint">暂无负反馈数据</div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if not db_error %}
+{# 本地 ECharts 静态资源；生产环境建议使用 /static/vendor/echarts.min.js 而非 CDN #}
+<script src="/static/vendor/echarts.min.js"></script>
+<script>
+    // 中文注释：复用后端 StatisticsService 已计算好的统计数据，仅负责前端图表展示，不改变业务统计逻辑
+    const statChartData = {
+        matched: {{ dashboard.matched_questions }},
+        missed: {{ dashboard.missed_questions }},
+        useful: {{ dashboard.useful_feedback_count }},
+        useless: {{ dashboard.useless_feedback_count }},
+        needHuman: {{ dashboard.need_human_feedback_count }},
+        matchRate: {{ dashboard.match_rate }},
+        topUnanswered: [
+            {%- for item in dashboard.top_unanswered_questions %}
+            {"summary": {{ (item.summary or '') | tojson }}, "frequency": {{ item.frequency | default(0) }}}{% if not loop.last %},{% endif %}
+            {%- endfor %}
+        ]
+    };
+</script>
+<script src="/static/js/stat_dashboard_charts.js"></script>
+{% endif %}
+{% endblock %}

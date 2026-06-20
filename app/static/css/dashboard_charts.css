@@ -1,0 +1,214 @@
+/* 统计看板 / 运营看板可视化统一样式（dashboard- 前缀，避免污染全局） */
+
+.dashboard-page {
+    --dashboard-bg: #f0f2f7;
+    --dashboard-card-bg: #ffffff;
+    --dashboard-card-border: #e2e8f0;
+    --dashboard-title: #1e293b;
+    --dashboard-muted: #64748b;
+    --dashboard-accent: #3b82f6;
+    --dashboard-accent-2: #8b5cf6;
+    --dashboard-shadow: 0 4px 20px rgba(15, 23, 42, 0.06);
+    background: var(--dashboard-bg);
+    margin: -1rem -1.25rem;
+    padding: 1.25rem 1.5rem 1.5rem;
+    border-radius: 0.75rem;
+}
+
+.dashboard-page .dashboard-header {
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-page .dashboard-header h2 {
+    color: var(--dashboard-title);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+}
+
+.dashboard-page .dashboard-header p {
+    color: var(--dashboard-muted);
+}
+
+/* KPI 指标卡片区 */
+.dashboard-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-kpi-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border: 1px solid var(--dashboard-card-border);
+    border-radius: 12px;
+    padding: 1.1rem 1.25rem;
+    box-shadow: var(--dashboard-shadow);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.dashboard-kpi-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--dashboard-accent), var(--dashboard-accent-2));
+    opacity: 0.85;
+}
+
+.dashboard-kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+}
+
+.dashboard-kpi-card .dashboard-kpi-label {
+    font-size: 0.8rem;
+    color: var(--dashboard-muted);
+    margin-bottom: 0.35rem;
+    line-height: 1.3;
+}
+
+.dashboard-kpi-card .dashboard-kpi-value {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: var(--dashboard-title);
+    line-height: 1.2;
+}
+
+.dashboard-kpi-card .dashboard-kpi-hint {
+    font-size: 0.72rem;
+    color: #94a3b8;
+    margin-top: 0.35rem;
+}
+
+/* 图表网格 */
+.dashboard-chart-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+}
+
+.dashboard-chart-card {
+    background: var(--dashboard-card-bg);
+    border: 1px solid var(--dashboard-card-border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem 0.75rem;
+    box-shadow: var(--dashboard-shadow);
+    min-height: 380px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-chart-card .dashboard-chart-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--dashboard-title);
+    margin-bottom: 0.25rem;
+}
+
+.dashboard-chart-card .dashboard-chart-desc {
+    font-size: 0.75rem;
+    color: var(--dashboard-muted);
+    margin-bottom: 0.5rem;
+}
+
+.dashboard-chart-container {
+    flex: 1;
+    width: 100%;
+    height: 320px;
+    min-height: 320px;
+}
+
+/* 底部明细表格区 */
+.dashboard-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+}
+
+.dashboard-leader-table-card {
+    background: var(--dashboard-card-bg);
+    border: 1px solid var(--dashboard-card-border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem;
+    box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-leader-table-card .dashboard-table-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--dashboard-title);
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.dashboard-leader-table-card .table {
+    font-size: 0.82rem;
+    margin-bottom: 0;
+}
+
+.dashboard-leader-table-card .table thead th {
+    background: #f8fafc;
+    color: var(--dashboard-muted);
+    font-weight: 600;
+    border-bottom-width: 1px;
+    white-space: nowrap;
+}
+
+.dashboard-leader-table-card .table tbody td {
+    vertical-align: middle;
+    color: #334155;
+}
+
+.dashboard-empty-hint {
+    text-align: center;
+    color: var(--dashboard-muted);
+    font-size: 0.85rem;
+    padding: 2rem 1rem;
+}
+
+/* 运营看板：三列 KPI */
+.dashboard-kpi-grid--ops {
+    grid-template-columns: repeat(6, 1fr);
+}
+
+/* 响应式 */
+@media (max-width: 1400px) {
+    .dashboard-kpi-grid,
+    .dashboard-kpi-grid--ops {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .dashboard-chart-grid,
+    .dashboard-detail-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-kpi-grid,
+    .dashboard-kpi-grid--ops {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 576px) {
+    .dashboard-page {
+        margin: -0.5rem -0.75rem;
+        padding: 1rem;
+    }
+
+    .dashboard-kpi-grid,
+    .dashboard-kpi-grid--ops {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-kpi-card .dashboard-kpi-value {
+        font-size: 1.5rem;
+    }
+}
