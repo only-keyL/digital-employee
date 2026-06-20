@@ -1,0 +1,64 @@
+{% extends "layout.html" %}
+
+{% block title %}文档知识库 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="h4 mb-0">文档知识库</h2>
+        <span class="text-muted small">共 {{ total }} 篇</span>
+    </div>
+    <a class="btn btn-primary btn-sm" href="/documents/upload">上传文档</a>
+</div>
+
+{% if db_error %}
+<div class="alert alert-danger">{{ db_error }}</div>
+{% elif items %}
+<div class="table-responsive card-table">
+    <table class="table table-hover align-middle mb-0">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>文档名</th>
+                <th>类型</th>
+                <th>系统/模块</th>
+                <th>解析状态</th>
+                <th>切片数</th>
+                <th>启用</th>
+                <th>上传时间</th>
+                <th class="actions-col">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.id }}</td>
+                <td><a href="/documents/{{ item.id }}">{{ item.doc_name }}</a></td>
+                <td><span class="badge text-bg-secondary">{{ item.doc_type }}</span></td>
+                <td>{{ item.system_name or '-' }} / {{ item.module_name or '-' }}</td>
+                <td>
+                    {% if item.parse_status == 'parsed' %}
+                    <span class="badge text-bg-success">{{ item.parse_status }}</span>
+                    {% elif item.parse_status == 'failed' %}
+                    <span class="badge text-bg-danger">{{ item.parse_status }}</span>
+                    {% else %}
+                    <span class="badge text-bg-warning">{{ item.parse_status }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ item.chunk_count }}</td>
+                <td>{% if item.enabled %}<span class="badge text-bg-success">是</span>{% else %}<span class="badge text-bg-secondary">否</span>{% endif %}</td>
+                <td>{{ item.create_time }}</td>
+                <td>
+                    <div class="action-group">
+                        <a class="btn btn-outline-secondary btn-sm" href="/documents/{{ item.id }}">详情</a>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">暂无文档，请先 <a href="/documents/upload">上传文档</a>。</div>
+{% endif %}
+{% endblock %}

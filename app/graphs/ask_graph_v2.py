@@ -212,17 +212,25 @@ async def retrieve_knowledge(state: AskGraphV2State, config) -> AskGraphV2State:
     state["top_score"] = retrieval.top_score
     state["confidence_level"] = retrieval.confidence_level
 
-    # 从 top1 上下文提取来源信息，供可信回答与 question_log 回填
+    # 从 top1 上下文提取来源信息；知识卡片优先于文档切片
+    primary_context = None
+    for ctx in retrieval.contexts:
+        if getattr(ctx, "source_type", None) == "knowledge_card":
+            primary_context = ctx
+            break
+    if primary_context is None and retrieval.contexts:
+        primary_context = retrieval.contexts[0]
     primary = _trusted_answer_service.get_primary_source_from_context(
-        retrieval.contexts[0] if retrieval.contexts else None,
+        primary_context,
         score=retrieval.top_score,
         confidence_level=retrieval.confidence_level,
     )
     if primary:
         state["primary_matched_card_id"] = primary.card_id
-        state["primary_matched_card_title"] = primary.title
+        state["primary_matched_card_title"] = primary.doc_name or primary.title
         state["system_name"] = primary.system_name
         state["module_name"] = primary.module_name
+    state["answer_source"] = retrieval.answer_source
 
     runner.log_service.save_retrieval_logs(state["run_id"], retrieval)
     return state

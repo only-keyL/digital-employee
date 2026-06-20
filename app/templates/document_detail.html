@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+
+{% block title %}文档详情 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+{% if page_error %}
+<div class="alert alert-danger">{{ page_error }}</div>
+{% elif doc %}
+<div class="page-header d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2 class="h4 mb-1">{{ doc.doc_name }}</h2>
+        <p class="text-muted small mb-0">ID: {{ doc.id }} · {{ doc.file_name }} · {{ doc.file_ext }}</p>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-outline-secondary btn-sm" href="/documents">返回列表</a>
+        {% if doc.enabled %}
+        <form method="post" action="/documents/{{ doc.id }}/disable" class="d-inline" data-confirm="确认禁用该文档？">
+            <button type="submit" class="btn btn-outline-warning btn-sm">禁用</button>
+        </form>
+        {% else %}
+        <form method="post" action="/documents/{{ doc.id }}/enable" class="d-inline">
+            <button type="submit" class="btn btn-outline-success btn-sm">启用</button>
+        </form>
+        {% endif %}
+        <form method="post" action="/documents/{{ doc.id }}/reparse" class="d-inline" data-confirm="确认重新解析并切片？旧切片将被逻辑删除。">
+            <button type="submit" class="btn btn-outline-primary btn-sm">重新解析</button>
+        </form>
+        <form method="post" action="/documents/{{ doc.id }}/sync-vector" class="d-inline" data-confirm="确认同步本文档向量到 Qdrant？">
+            <button type="submit" class="btn btn-outline-info btn-sm">同步向量</button>
+        </form>
+        <form method="post" action="/documents/{{ doc.id }}/delete-vector" class="d-inline" data-confirm="确认删除本文档在 Qdrant 中的向量？">
+            <button type="submit" class="btn btn-outline-secondary btn-sm">删除向量</button>
+        </form>
+        <form method="post" action="/documents/{{ doc.id }}/delete" class="d-inline" data-confirm="确认逻辑删除该文档？">
+            <button type="submit" class="btn btn-outline-danger btn-sm">删除</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card-table p-3">
+            <h3 class="h6 mb-3">基础信息</h3>
+            <dl class="row mb-0 detail-dl">
+                <dt class="col-sm-3">文档类型</dt><dd class="col-sm-9">{{ doc.doc_type }}</dd>
+                <dt class="col-sm-3">系统/模块</dt><dd class="col-sm-9">{{ doc.system_name or '-' }} / {{ doc.module_name or '-' }}</dd>
+                <dt class="col-sm-3">版本</dt><dd class="col-sm-9">{{ doc.version or '-' }}</dd>
+                <dt class="col-sm-3">文件大小</dt><dd class="col-sm-9">{{ doc.file_size }} bytes</dd>
+                <dt class="col-sm-3">file_hash</dt><dd class="col-sm-9"><small>{{ doc.file_hash }}</small></dd>
+                <dt class="col-sm-3">存储路径</dt><dd class="col-sm-9"><small>{{ doc.storage_path }}</small></dd>
+            </dl>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card-table p-3">
+            <h3 class="h6 mb-3">解析状态</h3>
+            <dl class="row mb-0 detail-dl">
+                <dt class="col-sm-5">parse_status</dt>
+                <dd class="col-sm-7"><span class="badge text-bg-secondary">{{ doc.parse_status }}</span></dd>
+                <dt class="col-sm-5">切片数量</dt><dd class="col-sm-7">{{ doc.chunk_count }}</dd>
+                <dt class="col-sm-5">启用</dt><dd class="col-sm-7">{% if doc.enabled %}是{% else %}否{% endif %}</dd>
+                <dt class="col-sm-5">上传时间</dt><dd class="col-sm-7">{{ doc.create_time }}</dd>
+                <dt class="col-sm-5">更新时间</dt><dd class="col-sm-7">{{ doc.update_time }}</dd>
+            </dl>
+            {% if doc.parse_error %}
+            <div class="alert alert-danger mt-3 mb-0 small">{{ doc.parse_error }}</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card-table p-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3 class="h6 mb-0">切片列表</h3>
+        <span class="text-muted small">共 {{ chunk_total }} 条</span>
+    </div>
+    {% if chunks %}
+    <div class="accordion" id="chunkAccordion">
+        {% for chunk in chunks %}
+        <div class="accordion-item">
+            <h2 class="accordion-header" id="heading{{ chunk.id }}">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ chunk.id }}">
+                    #{{ chunk.chunk_index }}
+                    {% if chunk.section_path %} · {{ chunk.section_path }}{% endif %}
+                    {% if chunk.page_no %} · 第 {{ chunk.page_no }} 页{% endif %}
+                    · {{ chunk.token_estimate }} 字
+                    · <span class="badge text-bg-info ms-1">{{ chunk.vector_status }}</span>
+                    {% if chunk.vector_error %}
+                    · <span class="text-danger small">同步失败</span>
+                    {% endif %}
+                </button>
+            </h2>
+            <div id="collapse{{ chunk.id }}" class="accordion-collapse collapse" data-bs-parent="#chunkAccordion">
+                <div class="accordion-body white-space-pre">{{ chunk.content }}</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-0">暂无切片{% if doc.parse_status == 'failed' %}，请检查解析错误后重新解析{% endif %}。</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

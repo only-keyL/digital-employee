@@ -43,8 +43,11 @@ class RagAnswerService:
 
     def build_prompt(self, question: str, contexts: list[RagContextItem]) -> str:
         blocks = []
-        for idx, ctx in enumerate(contexts[:3], start=1):
-            blocks.append(f"[知识{idx}]\n{ctx.content_text}")
+        for idx, ctx in enumerate(contexts[:6], start=1):
+            if ctx.source_type == "document_chunk":
+                blocks.append(f"[文档{idx}]\n{ctx.content_text}")
+            else:
+                blocks.append(f"[知识{idx}]\n{ctx.content_text}")
         context_text = "\n\n".join(blocks)
         return (
             f"{_RAG_SYSTEM_PROMPT}\n\n"

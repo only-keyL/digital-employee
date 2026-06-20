@@ -23,12 +23,18 @@ _CONFIDENCE_CN = {
 class PrimarySource:
     """top1 知识来源摘要，用于可信回答展示与日志回填。"""
 
-    card_id: int | None
-    title: str | None
-    score: float
-    system_name: str | None
-    module_name: str | None
-    confidence_level: str
+    source_type: str = "knowledge_card"
+    card_id: int | None = None
+    chunk_id: int | None = None
+    doc_id: int | None = None
+    title: str | None = None
+    doc_name: str | None = None
+    section_path: str | None = None
+    page_no: int | None = None
+    score: float = 0.0
+    system_name: str | None = None
+    module_name: str | None = None
+    confidence_level: str = "none"
 
 
 @dataclass
@@ -61,30 +67,64 @@ class TrustedAnswerService:
     ) -> PrimarySource | None:
         """从检索 hits 或轻量 dict 列表中提取 top1 知识来源。"""
         if hits:
-            top = hits[0]
+            top = self._pick_primary_hit(hits)
             level = confidence_level or classify_confidence(top.score)
+            if top.source_type == "document_chunk":
+                return PrimarySource(
+                    source_type="document_chunk",
+                    chunk_id=top.chunk_id,
+                    doc_id=top.doc_id,
+                    title=top.title,
+                    doc_name=top.doc_name,
+                    section_path=top.section_path,
+                    page_no=top.page_no,
+                    score=float(top.score),
+                    system_name=top.doc.system_name if top.doc else None,
+                    module_name=top.doc.module_name if top.doc else None,
+                    confidence_level=level,
+                )
+            card = top.card
             return PrimarySource(
-                card_id=int(top.card.id),
-                title=top.title or top.card.title,
+                source_type="knowledge_card",
+                card_id=int(card.id) if card else None,
+                title=top.title or (card.title if card else None),
                 score=float(top.score),
-                system_name=top.card.system_name,
-                module_name=top.card.module_name,
+                system_name=card.system_name if card else None,
+                module_name=card.module_name if card else None,
                 confidence_level=level,
             )
 
         if hit_dicts:
-            top = hit_dicts[0]
+            knowledge_dicts = [item for item in hit_dicts if item.get("source_type") != "document_chunk"]
+            doc_dicts = [item for item in hit_dicts if item.get("source_type") == "document_chunk"]
+            ordered = knowledge_dicts + doc_dicts
+            top = ordered[0] if ordered else hit_dicts[0]
+            source_type = top.get("source_type") or "knowledge_card"
             card_id = top.get("card_id")
             level = confidence_level or classify_confidence(float(top.get("score") or score))
             return PrimarySource(
+                source_type=source_type,
                 card_id=int(card_id) if card_id is not None else None,
+                chunk_id=int(top["chunk_id"]) if top.get("chunk_id") is not None else None,
+                doc_id=int(top["doc_id"]) if top.get("doc_id") is not None else None,
                 title=top.get("title"),
+                doc_name=top.get("doc_name"),
+                section_path=top.get("section_path"),
+                page_no=top.get("page_no"),
                 score=float(top.get("score") or score),
                 system_name=top.get("system_name"),
                 module_name=top.get("module_name"),
                 confidence_level=level,
             )
         return None
+
+    @staticmethod
+    def _pick_primary_hit(hits: list[RetrievalHit]) -> RetrievalHit:
+        """知识卡片优先于文档切片作为 top1 来源。"""
+        for hit in hits:
+            if hit.source_type == "knowledge_card":
+                return hit
+        return hits[0]
 
     def get_primary_source_from_context(
         self,
@@ -97,8 +137,25 @@ class TrustedAnswerService:
         if context is None:
             return None
         level = confidence_level or getattr(context, "confidence_level", None) or classify_confidence(score)
+        source_type = getattr(context, "source_type", None) or "knowledge_card"
+        if source_type == "document_chunk":
+            doc = getattr(context, "doc", None)
+            return PrimarySource(
+                source_type="document_chunk",
+                chunk_id=getattr(context, "chunk_id", None),
+                doc_id=getattr(context, "doc_id", None),
+                title=getattr(context, "title", None),
+                doc_name=getattr(context, "doc_name", None) or getattr(context, "title", None),
+                section_path=getattr(context, "section_path", None),
+                page_no=getattr(context, "page_no", None),
+                score=float(getattr(context, "score", score) or score),
+                system_name=getattr(doc, "system_name", None) if doc else None,
+                module_name=getattr(doc, "module_name", None) if doc else None,
+                confidence_level=level,
+            )
         card = getattr(context, "card", None)
         return PrimarySource(
+            source_type="knowledge_card",
             card_id=int(getattr(context, "knowledge_id", 0) or 0) or None,
             title=getattr(context, "title", None),
             score=float(getattr(context, "score", score) or score),
@@ -133,19 +190,36 @@ class TrustedAnswerService:
             "【数字员工回答】",
             body,
             "",
-            "【参考知识】",
-            f"知识卡片：{primary_source.title or '未知'}",
-            f"所属系统：{primary_source.system_name or '未知'}",
-            f"所属模块：{primary_source.module_name or '未知'}",
-            f"命中相似度：{primary_source.score:.4f}",
-            f"可信度：{_CONFIDENCE_CN.get(confidence_level, confidence_level)}",
-            "审核状态：已审核",
-            "",
-            "【反馈】",
-            "回复「有用」表示已解决；",
-            "回复「无用：原因」表示未解决；",
-            "回复「补充：你的正确答案」可以提交修订建议。",
+            "【参考来源】",
         ]
+        if primary_source.source_type == "document_chunk":
+            parts.extend(
+                [
+                    f"文档：《{primary_source.doc_name or primary_source.title or '未知'}》",
+                    f"章节：{primary_source.section_path or '-'}",
+                    f"页码：{primary_source.page_no or '未知'}",
+                ]
+            )
+        else:
+            parts.extend(
+                [
+                    f"知识卡片：{primary_source.title or '未知'}",
+                    f"所属系统：{primary_source.system_name or '未知'}",
+                    f"所属模块：{primary_source.module_name or '未知'}",
+                    "审核状态：已审核",
+                ]
+            )
+        parts.extend(
+            [
+                f"命中相似度：{primary_source.score:.4f}",
+                f"可信度：{_CONFIDENCE_CN.get(confidence_level, confidence_level)}",
+                "",
+                "【反馈】",
+                "回复「有用」表示已解决；",
+                "回复「无用：原因」表示未解决；",
+                "回复「补充：你的正确答案」可以提交修订建议。",
+            ]
+        )
 
         # 中置信度答案可以返回，但必须提醒用户结合实际场景人工确认
         if confidence_level == "medium":
@@ -193,10 +267,16 @@ class TrustedAnswerService:
 
         if matched and confidence_level == "high":
             answer_status = "hit"
-            answer_source = "qdrant_rag"
+            if primary_source and primary_source.source_type == "document_chunk":
+                answer_source = "document_chunk"
+            else:
+                answer_source = "qdrant_rag"
         elif matched and confidence_level == "medium":
             answer_status = "medium_confidence"
-            answer_source = "qdrant_rag"
+            if primary_source and primary_source.source_type == "document_chunk":
+                answer_source = "document_chunk"
+            else:
+                answer_source = "qdrant_rag"
         elif confidence_level == "low":
             answer_status = "low_confidence"
             answer_source = "unanswered"
@@ -206,7 +286,9 @@ class TrustedAnswerService:
 
         return TrustedLogPatch(
             primary_matched_card_id=primary_source.card_id if primary_source else None,
-            primary_matched_card_title=primary_source.title if primary_source else None,
+            primary_matched_card_title=(
+                primary_source.doc_name or primary_source.title if primary_source else None
+            ),
             confidence_level=confidence_level or "none",
             answer_status=answer_status,
             answer_source=answer_source,

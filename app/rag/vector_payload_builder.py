@@ -36,6 +36,7 @@ def build_qdrant_payload(card: KnowledgeCard) -> dict[str, Any]:
     """构建 Qdrant payload：不保存完整答案正文。"""
     question_preview = sanitize_text(card.question or card.title or "", max_length=120)
     return {
+        "source_type": "knowledge_card",
         "knowledge_id": card.id,
         "title": card.title,
         "question_preview": question_preview,

@@ -46,6 +46,7 @@ from app.agent.constants import (
 )
 
 # KnowledgeRepository 用来按 card_id 回查 MySQL 里的知识卡片。
+from app.repositories.document_repository import DocumentRepository
 from app.repositories.knowledge_repository import KnowledgeRepository
 
 # 下面三个 Service 才是真正的业务能力：
@@ -99,24 +100,46 @@ def _hits_from_state(state: AskState, session: Session) -> list[RetrievalHit]:
     """
 
     repo = KnowledgeRepository(session)
+    document_repo = DocumentRepository(session)
     hits: list[RetrievalHit] = []
 
-    # retrieval_hits 是 retrieve_node 写入 state 的轻量结果：
-    # [{"card_id": 1, "title": "...", "score": 0.9}, ...]
     for item in state.get("retrieval_hits") or []:
+        source_type = item.get("source_type") or "knowledge_card"
+        if source_type == "document_chunk":
+            chunk_id = item.get("chunk_id")
+            if chunk_id is None:
+                continue
+            chunk = document_repo.get_syncable_chunk_by_id(int(chunk_id))
+            if chunk is None:
+                continue
+            doc = document_repo.get_active_by_id(chunk.doc_id)
+            if doc is None:
+                continue
+            hits.append(
+                RetrievalHit(
+                    source_type="document_chunk",
+                    title=item.get("title") or doc.doc_name,
+                    score=float(item.get("score") or 0.0),
+                    chunk=chunk,
+                    doc=doc,
+                    chunk_id=chunk.id,
+                    doc_id=doc.id,
+                    doc_name=doc.doc_name,
+                    section_path=chunk.section_path,
+                    page_no=chunk.page_no,
+                )
+            )
+            continue
+
         card_id = item.get("card_id")
         if card_id is None:
             continue
-
-        # 这里使用 get_searchable_by_id，而不是普通 get_by_id。
-        # 这样能再次保证卡片仍然是：未删除、已审核通过、已启用。
         card = repo.get_searchable_by_id(int(card_id))
         if card is None:
             continue
-
-        # 重新包装成 RetrievalHit，里面既有完整 card 对象，也有 title/score。
         hits.append(
             RetrievalHit(
+                source_type="knowledge_card",
                 card=card,
                 title=item.get("title") or card.title,
                 score=float(item.get("score") or 0.0),
@@ -244,17 +267,30 @@ def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
             "route": "error",
         }
 
-    # 将 RetrievalHit 对象转换为普通 dict，附带系统/模块供可信回答使用。
-    hits_dicts = [
-        {
-            "card_id": hit.card.id,
+    # 将 RetrievalHit 转为 state 轻量 dict，保留 source_type 供来源展示。
+    hits_dicts = []
+    for hit in retrieval.hits:
+        item = {
+            "source_type": hit.source_type,
             "title": hit.title,
             "score": hit.score,
-            "system_name": hit.card.system_name,
-            "module_name": hit.card.module_name,
+            "system_name": hit.doc.system_name if hit.doc else (hit.card.system_name if hit.card else None),
+            "module_name": hit.doc.module_name if hit.doc else (hit.card.module_name if hit.card else None),
         }
-        for hit in retrieval.hits
-    ]
+        if hit.source_type == "document_chunk":
+            item.update(
+                {
+                    "chunk_id": hit.chunk_id,
+                    "doc_id": hit.doc_id,
+                    "doc_name": hit.doc_name,
+                    "section_path": hit.section_path,
+                    "page_no": hit.page_no,
+                    "card_id": 0,
+                }
+            )
+        else:
+            item["card_id"] = hit.card.id if hit.card else 0
+        hits_dicts.append(item)
     confidence_level = retrieval.confidence_level or "none"
     primary = _trusted_answer_service.get_primary_source(
         hit_dicts=hits_dicts,
@@ -272,6 +308,7 @@ def retrieve_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
         "primary_matched_card_title": primary.title if primary else None,
         "system_name": primary.system_name if primary else None,
         "module_name": primary.module_name if primary else None,
+        "answer_source": retrieval.answer_source,
         "retrieval_hits": hits_dicts,
         "route": "ok",
     }
@@ -307,11 +344,23 @@ def match_judge_node(state: AskState, config: RunnableConfig) -> dict[str, Any]:
     )
 
     if matched:
-        sources = [
-            {"card_id": int(h["card_id"]), "title": h.get("title") or "", "score": float(h.get("score") or 0.0)}
-            for h in hits
-        ]
-        matched_card_ids = ",".join(str(h["card_id"]) for h in hits)
+        sources = []
+        for h in hits:
+            source_item = {
+                "source_type": h.get("source_type") or "knowledge_card",
+                "card_id": int(h.get("card_id") or 0),
+                "title": h.get("title") or "",
+                "score": float(h.get("score") or 0.0),
+                "chunk_id": h.get("chunk_id"),
+                "doc_id": h.get("doc_id"),
+                "doc_name": h.get("doc_name"),
+                "section_path": h.get("section_path"),
+                "page_no": h.get("page_no"),
+            }
+            sources.append(source_item)
+        matched_card_ids = ",".join(
+            str(h["card_id"]) for h in hits if h.get("source_type", "knowledge_card") == "knowledge_card"
+        )
         log_patch = _trusted_answer_service.build_log_patch(
             confidence_level=confidence_level,
             matched=True,

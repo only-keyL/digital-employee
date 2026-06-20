@@ -160,6 +160,16 @@ class Settings(BaseSettings):
     )
     ops_max_retry_tasks: int = Field(default=50, description="运维脚本单次最大重试任务数")
 
+    # --- 文档知识库（阶段1：上传 / 解析 / 切片）---
+    document_upload_dir: str = Field(
+        default="data/uploads/documents",
+        description="文档上传本地存储目录",
+    )
+    document_upload_max_size_mb: int = Field(
+        default=20,
+        description="单文件上传大小上限（MB）",
+    )
+
     @field_validator("app_env")
     @classmethod
     def validate_app_env(cls, value: str) -> str:

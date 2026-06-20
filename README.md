@@ -1,5 +1,34 @@
 ﻿# 企业微信数字员工助手（digital-employee-assistant）
 
+## 文档知识库 RAG（已完成）
+
+文档知识库三阶段（上传切片 → 向量同步 → 交付总结）已完成。在原有知识卡片 RAG 基础上，新增**文档切片**第二知识源：上传公司已有文档即可参与 `/api/ask` 问答，并返回文档来源引用。
+
+当前阶段见 [docs/阶段控制.md](docs/阶段控制.md)。
+
+| 能力 | 入口 |
+| --- | --- |
+| 文档列表 | `GET /documents` |
+| 上传文档 | `GET /documents/upload` |
+| 上传 API | `POST /api/documents/upload` |
+| 同步向量 | `POST /api/documents/{doc_id}/sync-vector` |
+
+文档 RAG 验收：
+
+```powershell
+cd F:\WorkSpace\digital-employee-assistant
+.\.venv\Scripts\Activate.ps1
+$env:PYTHONIOENCODING="utf-8"
+python scripts/prod/check_document_stage1.py --env-file ".env"
+python scripts/prod/check_document_stage2_rag.py --env-file ".env" --fast
+python scripts/prod/check_document_stage2_rag.py --env-file ".env"
+python scripts/prod/check_enhance_stage7_docs.py
+```
+
+交付文档：[16_文档知识库RAG说明](docs/生产V1增强交付文档/16_文档知识库RAG说明.md) · [17_上传与切片](docs/生产V1增强交付文档/17_文档上传与切片流程.md) · [18_问答调用链](docs/生产V1增强交付文档/18_文档问答调用链.md) · [19_验收清单](docs/生产V1增强交付文档/19_文档RAG验收清单.md)
+
+---
+
 ## 生产 V1 增强版状态
 
 当前已完成生产 V1 **后增强阶段 1～7**：
@@ -23,6 +52,8 @@
 | 运营看板 | `GET /operation-dashboard` |
 | 反馈接口 | `POST /api/feedback` |
 | 看板 API | `GET /api/operation-dashboard/summary` |
+| 文档知识库 | `GET /documents` |
+| 文档向量同步 | `POST /api/documents/{doc_id}/sync-vector` |
 
 ### 增强版一键验收
 
@@ -51,8 +82,12 @@ python scripts/prod/run_all_regression_checks.py --env-file "docs/prod/.env" --f
 | [13_面试表达与项目亮点.md](docs/生产V1增强交付文档/13_面试表达与项目亮点.md) | 面试材料 |
 | [14_最终交付验收清单.md](docs/生产V1增强交付文档/14_最终交付验收清单.md) | 交付清单 |
 | [15_已知边界与后续优化.md](docs/生产V1增强交付文档/15_已知边界与后续优化.md) | 边界与 backlog |
+| [16_文档知识库RAG说明.md](docs/生产V1增强交付文档/16_文档知识库RAG说明.md) | 双知识源设计 |
+| [17_文档上传与切片流程.md](docs/生产V1增强交付文档/17_文档上传与切片流程.md) | 上传解析切片 |
+| [18_文档问答调用链.md](docs/生产V1增强交付文档/18_文档问答调用链.md) | 向量同步与问答 |
+| [19_文档RAG验收清单.md](docs/生产V1增强交付文档/19_文档RAG验收清单.md) | 文档 RAG 验收 |
 
-（完整 16 篇见 `docs/生产V1增强交付文档/` 目录。）
+（完整 20 篇见 `docs/生产V1增强交付文档/` 目录。）
 
 ---
 

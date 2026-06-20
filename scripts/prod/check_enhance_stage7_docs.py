@@ -29,6 +29,10 @@ REQUIRED_DOCS = [
     "13_面试表达与项目亮点.md",
     "14_最终交付验收清单.md",
     "15_已知边界与后续优化.md",
+    "16_文档知识库RAG说明.md",
+    "17_文档上传与切片流程.md",
+    "18_文档问答调用链.md",
+    "19_文档RAG验收清单.md",
 ]
 
 _SECRET_PATTERNS = [
@@ -85,7 +89,7 @@ def main() -> int:
         print(f"失败原因：缺少 {len(missing)} 篇：{', '.join(missing)}")
         failed += 1
     else:
-        print("[PASS] 16 篇增强交付文档齐全")
+        print("[PASS] 20 篇增强交付文档齐全（含文档 RAG 16～19）")
 
     if not README.is_file():
         print("[FAIL] 失败项：README")
@@ -105,6 +109,13 @@ def main() -> int:
     else:
         print("[FAIL] 失败项：README 文档索引")
         print("失败原因：README 未包含生产V1增强交付文档索引")
+        failed += 1
+
+    if "16_文档知识库RAG说明" in readme and "19_文档RAG验收清单" in readme:
+        print("[PASS] README 文档 RAG 索引存在")
+    else:
+        print("[FAIL] 失败项：README 文档 RAG 索引")
+        print("失败原因：README 未包含 16～19 文档知识库索引")
         failed += 1
 
     mermaid_count = sum(1 for name in REQUIRED_DOCS if "```mermaid" in _read(DOCS_DIR / name))

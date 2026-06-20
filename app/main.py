@@ -40,6 +40,7 @@ from app.routers.ask_router import router as ask_router
 from app.routers.ask_v2_router import router as ask_v2_router
 from app.routers.knowledge_router import router as knowledge_router
 from app.routers.page_router import router as page_router
+from app.routers.document_router import router as document_router
 from app.routers.feedback_router import router as feedback_router
 from app.routers.infra_router import router as infra_router
 from app.routers.mock_wecom_router import router as mock_wecom_router
@@ -117,6 +118,9 @@ def create_app() -> FastAPI:
 
     # 注册未命中问题相关 API / 页面操作。
     app.include_router(unanswered_router)
+
+    # 注册文档知识库 API（阶段1：上传 / 解析 / 切片）。
+    app.include_router(document_router)
 
     # 注册用户反馈相关 API。
     app.include_router(feedback_router)

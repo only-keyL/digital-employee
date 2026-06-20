@@ -13,11 +13,17 @@ class AskRequest(BaseModel):
 
 
 class AskSourceItem(BaseModel):
-    """命中知识卡片来源项。"""
+    """命中来源项（知识卡片或文档切片）。"""
 
-    card_id: int = Field(description="知识卡片 ID")
-    title: str = Field(description="知识卡片标题")
+    source_type: str = Field(default="knowledge_card", description="来源类型")
+    card_id: int = Field(default=0, description="知识卡片 ID，文档来源可为 0")
+    title: str = Field(description="标题或文档名")
     score: float = Field(description="向量相似度分数")
+    chunk_id: int | None = Field(default=None, description="文档切片 ID")
+    doc_id: int | None = Field(default=None, description="文档 ID")
+    doc_name: str | None = Field(default=None, description="文档名称")
+    section_path: str | None = Field(default=None, description="章节路径")
+    page_no: int | None = Field(default=None, description="页码")
 
 
 class AskResponse(BaseModel):

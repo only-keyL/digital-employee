@@ -1,0 +1,54 @@
+{% extends "layout.html" %}
+
+{% block title %}上传文档 - 企业微信数字员工助手{% endblock %}
+
+{% block content %}
+<div class="page-header mb-3">
+    <h2 class="h4 mb-1">上传文档</h2>
+    <p class="text-muted small mb-0">支持 .txt / .md / .docx / 文本型 .pdf</p>
+</div>
+
+{% if form_error %}
+<div class="alert alert-danger">{{ form_error }}</div>
+{% endif %}
+
+<div class="card-table p-3">
+    <form method="post" action="/documents/upload" enctype="multipart/form-data">
+        <div class="mb-3">
+            <label class="form-label">文档文件 <span class="text-danger">*</span></label>
+            <input class="form-control" type="file" name="file" accept=".txt,.md,.docx,.pdf" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">文档名称 <span class="text-danger">*</span></label>
+            <input class="form-control" type="text" name="doc_name" value="{{ form.doc_name or '' }}" required maxlength="200">
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">文档类型</label>
+                <select class="form-select" name="doc_type">
+                    <option value="manual" {% if form.doc_type == 'manual' %}selected{% endif %}>操作手册</option>
+                    <option value="requirement" {% if form.doc_type == 'requirement' %}selected{% endif %}>需求文档</option>
+                    <option value="faq" {% if form.doc_type == 'faq' %}selected{% endif %}>FAQ</option>
+                    <option value="other" {% if not form.doc_type or form.doc_type == 'other' %}selected{% endif %}>其他</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">版本号</label>
+                <input class="form-control" type="text" name="version" value="{{ form.version or '' }}" maxlength="50">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">所属系统</label>
+                <input class="form-control" type="text" name="system_name" value="{{ form.system_name or '' }}" maxlength="100">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">所属模块</label>
+                <input class="form-control" type="text" name="module_name" value="{{ form.module_name or '' }}" maxlength="100">
+            </div>
+        </div>
+        <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">上传并解析</button>
+            <a class="btn btn-outline-secondary" href="/documents">返回列表</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

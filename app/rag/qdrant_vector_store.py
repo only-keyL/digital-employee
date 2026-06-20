@@ -91,22 +91,29 @@ class QdrantVectorStore(VectorStore):
         logger.info("已创建 Qdrant collection=%s，维度=%d", self._collection, vector_size)
 
     def upsert_knowledge(self, knowledge_id: int, vector: list[float], payload: dict[str, Any]) -> None:
+        self.upsert_point(knowledge_id, vector, payload)
+
+    def upsert_point(self, point_id: int, vector: list[float], payload: dict[str, Any]) -> None:
+        """通用 upsert：知识卡片与文档切片共用 collection。"""
         self.ensure_collection(len(vector))
         client = self._get_client()
         client.upsert(
             collection_name=self._collection,
             points=[
-                qmodels.PointStruct(id=knowledge_id, vector=vector, payload=payload),
+                qmodels.PointStruct(id=point_id, vector=vector, payload=payload),
             ],
         )
 
     def delete_knowledge(self, knowledge_id: int) -> None:
+        self.delete_point(knowledge_id)
+
+    def delete_point(self, point_id: int) -> None:
         client = self._get_client()
         if not client.collection_exists(self._collection):
             return
         client.delete(
             collection_name=self._collection,
-            points_selector=qmodels.PointIdsList(points=[knowledge_id]),
+            points_selector=qmodels.PointIdsList(points=[point_id]),
         )
 
     def search(
@@ -128,9 +135,16 @@ class QdrantVectorStore(VectorStore):
         hits: list[dict[str, Any]] = []
         for rank, point in enumerate(results.points, start=1):
             payload = point.payload or {}
+            source_type = str(payload.get("source_type") or "")
+            if not source_type:
+                source_type = "document_chunk" if payload.get("chunk_id") else "knowledge_card"
+            knowledge_id = payload.get("knowledge_id") or payload.get("card_id")
             hits.append(
                 {
-                    "knowledge_id": int(payload.get("knowledge_id", point.id)),
+                    "source_type": source_type,
+                    "knowledge_id": int(knowledge_id) if knowledge_id is not None else None,
+                    "chunk_id": int(payload["chunk_id"]) if payload.get("chunk_id") is not None else None,
+                    "doc_id": int(payload["doc_id"]) if payload.get("doc_id") is not None else None,
                     "score": float(point.score or 0.0),
                     "rank": rank,
                     "payload": payload,

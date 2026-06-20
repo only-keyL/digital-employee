@@ -3,6 +3,10 @@ from app.db.database import Base
 from app.models.admin_operation_log import AdminOperationLog
 from app.models.ask_run import AskRun
 
+from app.models.document_chunk import DocumentChunk
+
+from app.models.document_source import DocumentSource
+
 from app.models.feedback_log import FeedbackLog
 
 from app.models.knowledge_card import KnowledgeCard
@@ -37,6 +41,10 @@ __all__ = [
     "AdminOperationLog",
 
     "AskRun",
+
+    "DocumentChunk",
+
+    "DocumentSource",
 
     "FeedbackLog",
 

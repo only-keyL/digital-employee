@@ -13,6 +13,8 @@ from app.config.settings import settings
 from app.db.database import Base, SessionLocal, engine
 from app.models import (  # noqa: F401 — register models with Base.metadata
     AskRun,
+    DocumentChunk,
+    DocumentSource,
     FeedbackLog,
     KnowledgeContribution,
     KnowledgeCard,

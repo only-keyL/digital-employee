@@ -241,9 +241,14 @@ class DuplicateCheckService:
             raw = [
                 {"knowledge_id": hit.card_id, "score": hit.score, "payload": hit.payload}
                 for hit in hits
+                if hit.source_type == "knowledge_card" and hit.card_id is not None
             ]
         else:
-            raw = self.vector_store.search(vector, top_k=top_k + 1, score_threshold=None)
+            raw = [
+                h
+                for h in self.vector_store.search(vector, top_k=top_k + 1, score_threshold=None)
+                if (h.get("payload") or {}).get("source_type", "knowledge_card") == "knowledge_card"
+            ]
 
         if exclude_card_id is None:
             return raw[:top_k]

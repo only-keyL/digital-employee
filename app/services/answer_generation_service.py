@@ -15,35 +15,33 @@ from app.services.retrieval_service import RetrievalHit
 class GeneratedAnswer:
     """AnswerGenerationService.generate 的返回结构。"""
 
-    answer: str  # 最终回答正文
-    provider: str  # LLM 提供方
-    llm_tokens: int  # token 数
-    answer_time_ms: int  # 生成耗时（毫秒）
-    need_human: bool  # 是否建议人工
-    risk_level: str  # 风险等级
-    fallback_reason: str | None  # 降级原因
-    error_stage: str | None  # 出错阶段
-    error_message: str | None  # 出错信息
-    degraded: bool  # 是否经过降级路径
+    answer: str
+    provider: str
+    llm_tokens: int
+    answer_time_ms: int
+    need_human: bool
+    risk_level: str
+    fallback_reason: str | None
+    error_stage: str | None
+    error_message: str | None
+    degraded: bool
 
 
 class AnswerGenerationService:
     """命中后基于检索结果调用 LLM 生成答案。"""
 
-    SOURCE_MARKER = "答案来源"  # 回答中必须包含的来源标记
+    SOURCE_MARKER = "答案来源"
 
     def __init__(self, prompt_service: PromptService | None = None) -> None:
         self.prompt_service = prompt_service or PromptService()
 
     def generate(self, *, question: str, hits: list[RetrievalHit]) -> GeneratedAnswer:
-        """根据检索 hits 拼 context 并调用 PromptService 生成答案。"""
         if not hits:
             raise ValueError("命中回答生成需要至少一条检索结果")
 
         context = self.build_context(hits)
-        top1 = hits[0].card
+        top_hit = hits[0]
         started = time.perf_counter()
-
         use_deepseek = LLMFactory.use_deepseek_primary()
 
         try:
@@ -52,7 +50,7 @@ class AnswerGenerationService:
                 context=context,
                 force_mock=not use_deepseek,
             )
-            answer = self._ensure_source_line(response.content, top1.title, top1.id)
+            answer = self._ensure_source_line(response.content, top_hit)
 
             if use_deepseek:
                 quality = self.prompt_service.check_quality(
@@ -122,9 +120,21 @@ class AnswerGenerationService:
             )
 
     def build_context(self, hits: list[RetrievalHit]) -> str:
-        """将知识卡片字段拼成 LLM 上下文文本。"""
+        """知识卡片在前，文档切片在后，作为 LLM 上下文。"""
         blocks: list[str] = []
-        for hit in hits[:3]:
+        for hit in hits[:6]:
+            if hit.source_type == "document_chunk" and hit.chunk is not None and hit.doc is not None:
+                page = f"页码：{hit.page_no}" if hit.page_no else "页码：未知"
+                blocks.append(
+                    f"【文档切片 chunk_id={hit.chunk_id}】\n"
+                    f"文档：《{hit.doc.doc_name}》\n"
+                    f"章节：{hit.section_path or hit.chunk.section_title or '-'}\n"
+                    f"{page}\n"
+                    f"内容：\n{hit.chunk.content or ''}"
+                )
+                continue
+            if hit.card is None:
+                continue
             card = hit.card
             blocks.append(
                 f"【知识卡片 card_id={card.id}】\n"
@@ -156,7 +166,7 @@ class AnswerGenerationService:
                 context=context,
                 force_mock=True,
             )
-            answer = self._ensure_source_line(response.content, hits[0].card.title, hits[0].card.id)
+            answer = self._ensure_source_line(response.content, hits[0])
             elapsed = int((time.perf_counter() - started) * 1000)
             return GeneratedAnswer(
                 answer=answer,
@@ -189,7 +199,7 @@ class AnswerGenerationService:
         error_message: str,
     ) -> GeneratedAnswer:
         elapsed = int((time.perf_counter() - started) * 1000)
-        answer = self._build_template_answer(hits[0].card)
+        answer = self._build_template_answer(hits[0])
         return GeneratedAnswer(
             answer=answer,
             provider="template",
@@ -203,26 +213,43 @@ class AnswerGenerationService:
             degraded=True,
         )
 
-    def _build_template_answer(self, card) -> str:
-        system_name = card.system_name or "未知系统"
-        module_name = card.module_name or "未知模块"
-        troubleshooting = card.troubleshooting_steps or "暂无"
-        solution = card.solution or "暂无"
-        risk_notice = card.risk_notice or "暂无"
+    def _build_template_answer(self, hit: RetrievalHit) -> str:
+        if hit.source_type == "document_chunk" and hit.chunk is not None and hit.doc is not None:
+            page = f"第 {hit.page_no} 页" if hit.page_no else "未知页码"
+            return (
+                "【自动降级回答】\n"
+                f"问题判断：根据文档《{hit.doc.doc_name}》相关内容作答。\n"
+                f"章节：{hit.section_path or hit.chunk.section_title or '-'}\n"
+                f"页码：{page}\n\n"
+                f"内容摘要：\n{(hit.chunk.content or '')[:500]}\n\n"
+                f"答案来源：{hit.doc.doc_name}（chunk_id={hit.chunk_id}）"
+            )
+        card = hit.card
+        system_name = (card.system_name if card else None) or "未知系统"
+        module_name = (card.module_name if card else None) or "未知模块"
+        troubleshooting = (card.troubleshooting_steps if card else None) or "暂无"
+        solution = (card.solution if card else None) or "暂无"
+        risk_notice = (card.risk_notice if card else None) or "暂无"
+        title = hit.title or (card.title if card else "未知")
+        card_id = card.id if card else 0
         return (
             "【自动降级回答】\n"
             f"问题判断：根据当前知识卡片，该问题属于 {system_name} / {module_name} 相关问题。\n"
             f"排查步骤：\n{troubleshooting}\n\n"
             f"处理建议：\n{solution}\n\n"
             f"风险提醒：\n{risk_notice}\n\n"
-            f"答案来源：{card.title}（card_id={card.id}）"
+            f"答案来源：{title}（card_id={card_id}）"
         )
 
-    def _ensure_source_line(self, answer: str, title: str, card_id: int) -> str:
+    def _ensure_source_line(self, answer: str, hit: RetrievalHit) -> str:
         text = answer.strip()
         if self.SOURCE_MARKER in text:
             return text
-        return f"{text}\n\n答案来源：{title}（card_id={card_id}）"
+        if hit.source_type == "document_chunk":
+            doc_name = hit.doc_name or hit.title or "文档"
+            return f"{text}\n\n答案来源：{doc_name}（chunk_id={hit.chunk_id}）"
+        card_id = hit.card.id if hit.card else 0
+        return f"{text}\n\n答案来源：{hit.title}（card_id={card_id}）"
 
     @staticmethod
     def _basic_format_valid(answer: str) -> bool:

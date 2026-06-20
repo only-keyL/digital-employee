@@ -27,8 +27,11 @@ class QdrantDimensionMismatchError(QdrantStoreError):
 class QdrantSearchHit:
     """单条向量检索命中结果。"""
 
-    card_id: int  # 知识卡片 ID
-    title: str  # 卡片标题
+    point_id: int  # Qdrant point id
+    source_type: str  # knowledge_card / document_chunk
+    card_id: int | None  # 知识卡片 ID（文档切片为 None）
+    chunk_id: int | None  # 文档切片 ID（知识卡片为 None）
+    title: str  # 展示标题
     score: float  # 相似度得分
     payload: dict[str, Any]  # Qdrant 存储的完整 payload
 
@@ -100,8 +103,10 @@ class QdrantStore:
         )
 
     def build_payload(self, card: KnowledgeCard) -> dict[str, Any]:
-        """将知识卡片转为 Qdrant point payload。"""
+        """将知识卡片转为 Qdrant point payload（兼容旧数据：含 card_id 与 knowledge_id）。"""
         return {
+            "source_type": "knowledge_card",
+            "knowledge_id": card.id,
             "card_id": card.id,
             "title": card.title,
             "question": card.question or "",
@@ -125,6 +130,21 @@ class QdrantStore:
             payload=self.build_payload(card),
         )
         self._client.upsert(collection_name=self._collection, points=[point])
+
+    def upsert_document_chunk(self, point_id: int, vector: list[float], payload: dict[str, Any]) -> None:
+        """写入文档切片向量，与知识卡片共用 collection。"""
+        self.init_collection()
+        point = qmodels.PointStruct(id=point_id, vector=vector, payload=payload)
+        self._client.upsert(collection_name=self._collection, points=[point])
+
+    def delete_document_chunk(self, point_id: int) -> None:
+        """按 point id 删除文档切片向量。"""
+        if not self._client.collection_exists(self._collection):
+            return
+        self._client.delete(
+            collection_name=self._collection,
+            points_selector=qmodels.PointIdsList(points=[point_id]),
+        )
 
     def delete_knowledge_card(self, card_id: int) -> None:
         """按 card_id 删除对应向量点。"""
@@ -151,11 +171,22 @@ class QdrantStore:
         hits: list[QdrantSearchHit] = []
         for point in results.points:
             payload = point.payload or {}
-            card_id = int(payload.get("card_id", point.id))
+            source_type = str(payload.get("source_type") or "")
+            if not source_type:
+                if payload.get("chunk_id"):
+                    source_type = "document_chunk"
+                else:
+                    source_type = "knowledge_card"
+            card_id = payload.get("card_id") or payload.get("knowledge_id")
+            chunk_id = payload.get("chunk_id")
+            title = str(payload.get("title") or payload.get("doc_name") or payload.get("section_title") or "")
             hits.append(
                 QdrantSearchHit(
-                    card_id=card_id,
-                    title=str(payload.get("title", "")),
+                    point_id=int(point.id),
+                    source_type=source_type,
+                    card_id=int(card_id) if card_id is not None else None,
+                    chunk_id=int(chunk_id) if chunk_id is not None else None,
+                    title=title,
                     score=float(point.score or 0.0),
                     payload=payload,
                 )
@@ -163,7 +194,7 @@ class QdrantStore:
         return hits
 
     def search_by_vector(self, query_vector: list[float], *, top_k: int | None = None) -> list[QdrantSearchHit]:
-        """根据向量查询相似知识卡片，用于重复检测。"""
+        """根据向量查询相似知识或文档切片。"""
         if not self._client.collection_exists(self._collection):
             return []
 
@@ -177,11 +208,22 @@ class QdrantStore:
         hits: list[QdrantSearchHit] = []
         for point in results.points:
             payload = point.payload or {}
-            card_id = int(payload.get("card_id", point.id))
+            source_type = str(payload.get("source_type") or "")
+            if not source_type:
+                if payload.get("chunk_id"):
+                    source_type = "document_chunk"
+                else:
+                    source_type = "knowledge_card"
+            card_id = payload.get("card_id") or payload.get("knowledge_id")
+            chunk_id = payload.get("chunk_id")
+            title = str(payload.get("title") or payload.get("doc_name") or payload.get("section_title") or "")
             hits.append(
                 QdrantSearchHit(
-                    card_id=card_id,
-                    title=str(payload.get("title", "")),
+                    point_id=int(point.id),
+                    source_type=source_type,
+                    card_id=int(card_id) if card_id is not None else None,
+                    chunk_id=int(chunk_id) if chunk_id is not None else None,
+                    title=title,
                     score=float(point.score or 0.0),
                     payload=payload,
                 )

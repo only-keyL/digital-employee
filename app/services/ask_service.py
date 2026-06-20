@@ -109,9 +109,15 @@ class AskService:
         """将 LangGraph 最终 state 映射为 /api/ask 响应结构。"""
         sources = [
             AskSourceItem(
+                source_type=item.get("source_type") or "knowledge_card",
                 card_id=int(item.get("card_id") or 0),
                 title=item.get("title") or "",
                 score=float(item.get("score") or 0.0),
+                chunk_id=item.get("chunk_id"),
+                doc_id=item.get("doc_id"),
+                doc_name=item.get("doc_name"),
+                section_path=item.get("section_path"),
+                page_no=item.get("page_no"),
             )
             for item in (state.get("sources") or [])
         ]

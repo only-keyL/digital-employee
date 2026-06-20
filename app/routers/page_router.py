@@ -2,7 +2,7 @@
 
 from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, Form, Query, Request
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import SQLAlchemyError
@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.config.settings import settings
 from app.db.database import get_db
+from app.schemas.document_schema import DocTypeInput, DocumentUploadMeta
 from app.schemas.knowledge_schema import KnowledgeAuditRequest, KnowledgeCreate, KnowledgeUpdate
+from app.services.document_service import DocumentService, DocumentServiceError
 from app.services.feedback_service import FeedbackService
 from app.services.knowledge_service import KnowledgeService, KnowledgeServiceError
 from app.services.operation_dashboard_service import OperationDashboardService
@@ -60,6 +62,32 @@ def _redirect_knowledge_list(message: str | None = None, error: str | None = Non
 def _redirect_knowledge_detail(card_id: int, message: str | None = None, error: str | None = None) -> RedirectResponse:
     """重定向到知识卡片详情页。"""
     url = f"/knowledge-cards/{card_id}"
+    params: list[str] = []
+    if message:
+        params.append(f"msg={quote(message)}")
+    if error:
+        params.append(f"error={quote(error)}")
+    if params:
+        url = f"{url}?{'&'.join(params)}"
+    return RedirectResponse(url=url, status_code=303)
+
+
+def _redirect_document_list(message: str | None = None, error: str | None = None) -> RedirectResponse:
+    """重定向到文档列表，可选携带成功/错误提示。"""
+    url = "/documents"
+    params: list[str] = []
+    if message:
+        params.append(f"msg={quote(message)}")
+    if error:
+        params.append(f"error={quote(error)}")
+    if params:
+        url = f"{url}?{'&'.join(params)}"
+    return RedirectResponse(url=url, status_code=303)
+
+
+def _redirect_document_detail(doc_id: int, message: str | None = None, error: str | None = None) -> RedirectResponse:
+    """重定向到文档详情页。"""
+    url = f"/documents/{doc_id}"
     params: list[str] = []
     if message:
         params.append(f"msg={quote(message)}")
@@ -551,3 +579,170 @@ def operation_dashboard(
         name="operation_dashboard.html",
         context=_page_context(request, "operation_dashboard", **context),
     )
+
+
+@router.get("/documents", response_class=HTMLResponse)
+def document_list(
+    request: Request,
+    db: Session = Depends(get_db),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+) -> HTMLResponse:
+    """文档知识库列表页。"""
+    page, page_size = _normalize_pagination(page, page_size)
+    context = {"items": [], "total": 0, "page": page, "page_size": page_size, "db_error": None}
+    try:
+        result = DocumentService(db).list_for_page(page=page, page_size=page_size)
+        context.update(result)
+    except SQLAlchemyError as exc:
+        context["db_error"] = _db_error_message(exc)
+    return templates.TemplateResponse(
+        request=request,
+        name="document_list.html",
+        context=_page_context(request, "documents", **context),
+    )
+
+
+@router.get("/documents/upload", response_class=HTMLResponse)
+def document_upload_page(request: Request) -> HTMLResponse:
+    """文档上传页。"""
+    return templates.TemplateResponse(
+        request=request,
+        name="document_upload.html",
+        context=_page_context(request, "documents", form={}, form_error=None),
+    )
+
+
+@router.post("/documents/upload")
+async def document_upload_submit(
+    request: Request,
+    db: Session = Depends(get_db),
+    file: UploadFile = File(...),
+    doc_name: str = Form(...),
+    doc_type: DocTypeInput = Form("other"),
+    system_name: str = Form(""),
+    module_name: str = Form(""),
+    version: str = Form(""),
+):
+    """提交文档上传表单。"""
+    form_data = {
+        "doc_name": doc_name,
+        "doc_type": doc_type,
+        "system_name": system_name,
+        "module_name": module_name,
+        "version": version,
+    }
+    try:
+        meta = DocumentUploadMeta(**form_data)
+        doc = await DocumentService(db).upload(file, meta)
+        message = "文档上传成功"
+        if doc.get("parse_status") == "failed":
+            message = "文档已上传，但解析失败，请查看详情"
+        elif doc.get("parse_status") == "parsed":
+            message = f"文档上传并解析成功，共 {doc.get('chunk_count', 0)} 个切片"
+        return _redirect_document_detail(doc["id"], message)
+    except (DocumentServiceError, SQLAlchemyError, ValueError) as exc:
+        return templates.TemplateResponse(
+            request=request,
+            name="document_upload.html",
+            context=_page_context(
+                request,
+                "documents",
+                form=form_data,
+                form_error=str(exc),
+            ),
+            status_code=400,
+        )
+
+
+@router.get("/documents/{doc_id:int}", response_class=HTMLResponse)
+def document_detail(
+    request: Request,
+    doc_id: int,
+    db: Session = Depends(get_db),
+) -> HTMLResponse:
+    """文档详情与切片预览页。"""
+    context = {
+        "doc": None,
+        "chunks": [],
+        "chunk_total": 0,
+        "page_error": None,
+    }
+    try:
+        service = DocumentService(db)
+        doc = service.get_detail(doc_id)
+        chunk_result = service.list_chunks(doc_id, page=1, page_size=200)
+        context["doc"] = doc
+        context["chunks"] = chunk_result["items"]
+        context["chunk_total"] = chunk_result["total"]
+    except DocumentServiceError as exc:
+        context["page_error"] = exc.message
+    except SQLAlchemyError as exc:
+        context["page_error"] = _db_error_message(exc)
+    return templates.TemplateResponse(
+        request=request,
+        name="document_detail.html",
+        context=_page_context(request, "documents", **context),
+    )
+
+
+@router.post("/documents/{doc_id:int}/enable")
+def document_enable_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        DocumentService(db).enable(doc_id)
+        return _redirect_document_detail(doc_id, "文档已启用")
+    except (DocumentServiceError, SQLAlchemyError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
+
+
+@router.post("/documents/{doc_id:int}/disable")
+def document_disable_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        DocumentService(db).disable(doc_id)
+        return _redirect_document_detail(doc_id, "文档已禁用")
+    except (DocumentServiceError, SQLAlchemyError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
+
+
+@router.post("/documents/{doc_id:int}/reparse")
+def document_reparse_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        doc = DocumentService(db).reparse(doc_id)
+        message = "重新解析完成"
+        if doc.get("parse_status") == "failed":
+            message = "重新解析失败，请查看详情"
+        return _redirect_document_detail(doc_id, message)
+    except (DocumentServiceError, SQLAlchemyError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
+
+
+@router.post("/documents/{doc_id:int}/sync-vector")
+def document_sync_vector_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        from app.services.document_vector_sync_service import DocumentVectorSyncService
+
+        stats = DocumentVectorSyncService(db).sync_document(doc_id)
+        message = f"向量同步完成：成功 {stats.get('synced', 0)}，失败 {stats.get('failed', 0)}"
+        return _redirect_document_detail(doc_id, message)
+    except (DocumentServiceError, SQLAlchemyError, ValueError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
+
+
+@router.post("/documents/{doc_id:int}/delete-vector")
+def document_delete_vector_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        from app.services.document_vector_sync_service import DocumentVectorSyncService
+
+        DocumentVectorSyncService(db).delete_document_vectors(doc_id)
+        return _redirect_document_detail(doc_id, "文档向量已删除")
+    except (DocumentServiceError, SQLAlchemyError, ValueError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
+
+
+@router.post("/documents/{doc_id:int}/delete")
+def document_delete_page(doc_id: int, db: Session = Depends(get_db)) -> RedirectResponse:
+    try:
+        DocumentService(db).delete(doc_id)
+        return _redirect_document_list("文档已删除")
+    except (DocumentServiceError, SQLAlchemyError) as exc:
+        return _redirect_document_detail(doc_id, error=str(exc))
